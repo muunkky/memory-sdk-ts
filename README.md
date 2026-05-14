@@ -28,11 +28,14 @@ import XtraceMemoryManager from 'xtrace-memory-manager';
 const client = new XtraceMemoryManager({
   apiKey: process.env['XTRACE_MEMORY_MANAGER_API_KEY'], // This is the default and can be omitted
   orgID: process.env['XTRACE_MEMORY_MANAGER_ORG_ID'], // This is the default and can be omitted
+  environment: 'environment_1', // defaults to 'production'
 });
 
-const response = await client.memories.add({ messages: [{ content: 'content', role: 'role' }] });
+const memory = await client.memories.create({
+  messages: [{ content: 'I keep a daily log of every dog I see on my walks.', role: 'user' }],
+});
 
-console.log(response.consolidation_id_mapping);
+console.log(memory.job_id);
 ```
 
 ### Request & Response types
@@ -46,12 +49,13 @@ import XtraceMemoryManager from 'xtrace-memory-manager';
 const client = new XtraceMemoryManager({
   apiKey: process.env['XTRACE_MEMORY_MANAGER_API_KEY'], // This is the default and can be omitted
   orgID: process.env['XTRACE_MEMORY_MANAGER_ORG_ID'], // This is the default and can be omitted
+  environment: 'environment_1', // defaults to 'production'
 });
 
-const params: XtraceMemoryManager.MemoryAddParams = {
-  messages: [{ content: 'content', role: 'role' }],
+const params: XtraceMemoryManager.MemoryCreateParams = {
+  messages: [{ content: 'I keep a daily log of every dog I see on my walks.', role: 'user' }],
 };
-const response: XtraceMemoryManager.MemoryAddResponse = await client.memories.add(params);
+const memory: XtraceMemoryManager.MemoryCreateResponse = await client.memories.create(params);
 ```
 
 Documentation for each method, request param, and response field are available in docstrings and will appear on hover in most modern editors.
@@ -64,8 +68,10 @@ a subclass of `APIError` will be thrown:
 
 <!-- prettier-ignore -->
 ```ts
-const response = await client.memories
-  .add({ messages: [{ content: 'content', role: 'role' }] })
+const memory = await client.memories
+  .create({
+    messages: [{ content: 'I keep a daily log of every dog I see on my walks.', role: 'user' }],
+  })
   .catch(async (err) => {
     if (err instanceof XtraceMemoryManager.APIError) {
       console.log(err.status); // 400
@@ -106,7 +112,7 @@ const client = new XtraceMemoryManager({
 });
 
 // Or, configure per-request:
-await client.memories.add({ messages: [{ content: 'content', role: 'role' }] }, {
+await client.memories.create({ messages: [{ content: 'I keep a daily log of every dog I see on my walks.', role: 'user' }] }, {
   maxRetries: 5,
 });
 ```
@@ -123,7 +129,7 @@ const client = new XtraceMemoryManager({
 });
 
 // Override per-request:
-await client.memories.add({ messages: [{ content: 'content', role: 'role' }] }, {
+await client.memories.create({ messages: [{ content: 'I keep a daily log of every dog I see on my walks.', role: 'user' }] }, {
   timeout: 5 * 1000,
 });
 ```
@@ -147,16 +153,20 @@ Unlike `.asResponse()` this method consumes the body, returning once it is parse
 const client = new XtraceMemoryManager();
 
 const response = await client.memories
-  .add({ messages: [{ content: 'content', role: 'role' }] })
+  .create({
+    messages: [{ content: 'I keep a daily log of every dog I see on my walks.', role: 'user' }],
+  })
   .asResponse();
 console.log(response.headers.get('X-My-Header'));
 console.log(response.statusText); // access the underlying Response object
 
-const { data: response, response: raw } = await client.memories
-  .add({ messages: [{ content: 'content', role: 'role' }] })
+const { data: memory, response: raw } = await client.memories
+  .create({
+    messages: [{ content: 'I keep a daily log of every dog I see on my walks.', role: 'user' }],
+  })
   .withResponse();
 console.log(raw.headers.get('X-My-Header'));
-console.log(response.consolidation_id_mapping);
+console.log(memory.job_id);
 ```
 
 ### Logging
@@ -236,7 +246,7 @@ parameter. This library doesn't validate at runtime that the request matches the
 send will be sent as-is.
 
 ```ts
-client.memories.add({
+client.memories.create({
   // ...
   // @ts-expect-error baz is not yet public
   baz: 'undocumented option',

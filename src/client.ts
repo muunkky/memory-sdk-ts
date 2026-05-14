@@ -18,20 +18,24 @@ import * as Uploads from './core/uploads';
 import * as API from './resources/index';
 import { APIPromise } from './core/api-promise';
 import {
-  Artifact,
-  Episode,
-  Fact,
+  BaseMemory,
   Memories,
-  MemoryAddParams,
-  MemoryAddResponse,
-  MemoryDeleteResponse,
-  MemoryItem,
+  Memory,
+  MemoryCreateParams,
+  MemoryCreateResponse,
+  MemoryFlushParams,
+  MemoryFlushResponse,
+  MemoryGetJobStatusResponse,
+  MemoryList,
+  MemoryListFacetsResponse,
   MemoryListParams,
-  MemoryListResponse,
+  MemoryRetrieveParams,
+  MemoryRetrieveResponse,
   MemorySearchParams,
   MemorySearchResponse,
   MemoryUpdateParams,
 } from './resources/memories';
+import { Usage, UsageRetrieveResponse } from './resources/usage';
 import { type Fetch } from './internal/builtin-types';
 import { HeadersLike, NullableHeaders, buildHeaders } from './internal/headers';
 import { FinalRequestOptions, RequestOptions } from './internal/request-options';
@@ -45,21 +49,31 @@ import {
 } from './internal/utils/log';
 import { isEmptyObj } from './internal/utils/values';
 
+const environments = {
+  production: 'https://api.xtrace.ai',
+  environment_1: 'https://api.staging.xtrace.ai',
+};
+type Environment = keyof typeof environments;
+
 export interface ClientOptions {
   /**
-   * Long-lived org API key. Alternative: `Authorization: Token <key>`.
+   * API key. Format: `Authorization: Bearer xtk_<key>`.
    */
-  apiKey?: string | null | undefined;
+  apiKey?: string | undefined;
 
   /**
-   * Long-lived API key sent as `Authorization: Token <api-key>`.
+   * Org identifier. Required on every request; must match the org the API key belongs to. The header is required because auth records are stored keyed by `(org_id, api_key_hash)` in DynamoDB — without it the auth layer cannot do a single-key lookup.
    */
-  bearerToken?: string | null | undefined;
+  orgID?: string | undefined;
 
   /**
-   * Required alongside the API key (no key→org reverse index).
+   * Specifies the environment to use for the API.
+   *
+   * Each environment maps to a different base URL:
+   * - `production` corresponds to `https://api.xtrace.ai`
+   * - `environment_1` corresponds to `https://api.staging.xtrace.ai`
    */
-  orgID?: string | null | undefined;
+  environment?: Environment | undefined;
 
   /**
    * Override the default base URL for the API, e.g., "https://api.example.com/v2/"
@@ -134,9 +148,8 @@ export interface ClientOptions {
  * API Client for interfacing with the Xtrace Memory Manager API.
  */
 export class XtraceMemoryManager {
-  apiKey: string | null;
-  bearerToken: string | null;
-  orgID: string | null;
+  apiKey: string;
+  orgID: string;
 
   baseURL: string;
   maxRetries: number;
@@ -153,10 +166,10 @@ export class XtraceMemoryManager {
   /**
    * API Client for interfacing with the Xtrace Memory Manager API.
    *
-   * @param {string | null | undefined} [opts.apiKey=process.env['XTRACE_MEMORY_MANAGER_API_KEY'] ?? null]
-   * @param {string | null | undefined} [opts.bearerToken=process.env['XTRACE_MEMORY_MANAGER_BEARER_TOKEN'] ?? null]
-   * @param {string | null | undefined} [opts.orgID=process.env['XTRACE_MEMORY_MANAGER_ORG_ID'] ?? null]
-   * @param {string} [opts.baseURL=process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] ?? https://api.example.com] - Override the default base URL for the API.
+   * @param {string | undefined} [opts.apiKey=process.env['XTRACE_MEMORY_MANAGER_API_KEY'] ?? undefined]
+   * @param {string | undefined} [opts.orgID=process.env['XTRACE_MEMORY_MANAGER_ORG_ID'] ?? undefined]
+   * @param {Environment} [opts.environment=production] - Specifies the environment URL to use for the API.
+   * @param {string} [opts.baseURL=process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] ?? https://api.xtrace.ai] - Override the default base URL for the API.
    * @param {number} [opts.timeout=1 minute] - The maximum amount of time (in milliseconds) the client will wait for a response before timing out.
    * @param {MergedRequestInit} [opts.fetchOptions] - Additional `RequestInit` options to be passed to `fetch` calls.
    * @param {Fetch} [opts.fetch] - Specify a custom `fetch` function implementation.
@@ -166,20 +179,36 @@ export class XtraceMemoryManager {
    */
   constructor({
     baseURL = readEnv('XTRACE_MEMORY_MANAGER_BASE_URL'),
-    apiKey = readEnv('XTRACE_MEMORY_MANAGER_API_KEY') ?? null,
-    bearerToken = readEnv('XTRACE_MEMORY_MANAGER_BEARER_TOKEN') ?? null,
-    orgID = readEnv('XTRACE_MEMORY_MANAGER_ORG_ID') ?? null,
+    apiKey = readEnv('XTRACE_MEMORY_MANAGER_API_KEY'),
+    orgID = readEnv('XTRACE_MEMORY_MANAGER_ORG_ID'),
     ...opts
   }: ClientOptions = {}) {
+    if (apiKey === undefined) {
+      throw new Errors.XtraceMemoryManagerError(
+        "The XTRACE_MEMORY_MANAGER_API_KEY environment variable is missing or empty; either provide it, or instantiate the XtraceMemoryManager client with an apiKey option, like new XtraceMemoryManager({ apiKey: 'My API Key' }).",
+      );
+    }
+    if (orgID === undefined) {
+      throw new Errors.XtraceMemoryManagerError(
+        "The XTRACE_MEMORY_MANAGER_ORG_ID environment variable is missing or empty; either provide it, or instantiate the XtraceMemoryManager client with an orgID option, like new XtraceMemoryManager({ orgID: 'My Org ID' }).",
+      );
+    }
+
     const options: ClientOptions = {
       apiKey,
-      bearerToken,
       orgID,
       ...opts,
-      baseURL: baseURL || `https://api.example.com`,
+      baseURL,
+      environment: opts.environment ?? 'production',
     };
 
-    this.baseURL = options.baseURL!;
+    if (baseURL && opts.environment) {
+      throw new Errors.XtraceMemoryManagerError(
+        'Ambiguous URL; The `baseURL` option (or XTRACE_MEMORY_MANAGER_BASE_URL env var) and the `environment` option are given. If you want to use the environment you must pass baseURL: null',
+      );
+    }
+
+    this.baseURL = options.baseURL || environments[options.environment || 'production'];
     this.timeout = options.timeout ?? XtraceMemoryManager.DEFAULT_TIMEOUT /* 1 minute */;
     this.logger = options.logger ?? console;
     const defaultLogLevel = 'warn';
@@ -209,7 +238,6 @@ export class XtraceMemoryManager {
     this._options = options;
 
     this.apiKey = apiKey;
-    this.bearerToken = bearerToken;
     this.orgID = orgID;
   }
 
@@ -219,7 +247,8 @@ export class XtraceMemoryManager {
   withOptions(options: Partial<ClientOptions>): this {
     const client = new (this.constructor as any as new (props: ClientOptions) => typeof this)({
       ...this._options,
-      baseURL: this.baseURL,
+      environment: options.environment ? options.environment : undefined,
+      baseURL: options.environment ? undefined : this.baseURL,
       maxRetries: this.maxRetries,
       timeout: this.timeout,
       logger: this.logger,
@@ -227,7 +256,6 @@ export class XtraceMemoryManager {
       fetch: this.fetch,
       fetchOptions: this.fetchOptions,
       apiKey: this.apiKey,
-      bearerToken: this.bearerToken,
       orgID: this.orgID,
       ...options,
     });
@@ -238,7 +266,7 @@ export class XtraceMemoryManager {
    * Check whether the base URL is set to its default.
    */
   #baseURLOverridden(): boolean {
-    return this.baseURL !== 'https://api.example.com';
+    return this.baseURL !== environments[this._options.environment || 'production'];
   }
 
   protected defaultQuery(): Record<string, string | undefined> | undefined {
@@ -246,61 +274,18 @@ export class XtraceMemoryManager {
   }
 
   protected validateHeaders({ values, nulls }: NullableHeaders) {
-    if (this.apiKey && values.get('x-api-key')) {
-      return;
-    }
-    if (nulls.has('x-api-key')) {
-      return;
-    }
-
-    if (this.bearerToken && values.get('authorization')) {
-      return;
-    }
-    if (nulls.has('authorization')) {
-      return;
-    }
-
-    if (this.orgID && values.get('x-org-id')) {
-      return;
-    }
-    if (nulls.has('x-org-id')) {
-      return;
-    }
-
-    throw new Error(
-      'Could not resolve authentication method. Expected one of apiKey, bearerToken or orgID to be set. Or for one of the "x-api-key", "Authorization" or "X-Org-Id" headers to be explicitly omitted',
-    );
+    return;
   }
 
-  protected async authHeaders(
-    opts: FinalRequestOptions,
-    schemes: { apiKeyHeaderAuth?: boolean; bearerTokenAuth?: boolean; orgIDAuth?: boolean },
-  ): Promise<NullableHeaders | undefined> {
-    return buildHeaders([
-      schemes.apiKeyHeaderAuth ? await this.apiKeyHeaderAuth(opts) : null,
-      schemes.bearerTokenAuth ? await this.bearerTokenAuth(opts) : null,
-      schemes.orgIDAuth ? await this.orgIDAuth(opts) : null,
-    ]);
+  protected async authHeaders(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
+    return buildHeaders([await this.bearerAuth(opts), await this.orgIDHeaderAuth(opts)]);
   }
 
-  protected async apiKeyHeaderAuth(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
-    if (this.apiKey == null) {
-      return undefined;
-    }
-    return buildHeaders([{ 'x-api-key': this.apiKey }]);
+  protected async bearerAuth(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
+    return buildHeaders([{ Authorization: `Bearer ${this.apiKey}` }]);
   }
 
-  protected async bearerTokenAuth(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
-    if (this.bearerToken == null) {
-      return undefined;
-    }
-    return buildHeaders([{ Authorization: `Bearer ${this.bearerToken}` }]);
-  }
-
-  protected async orgIDAuth(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
-    if (this.orgID == null) {
-      return undefined;
-    }
+  protected async orgIDHeaderAuth(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
     return buildHeaders([{ 'X-Org-Id': this.orgID }]);
   }
 
@@ -730,10 +715,7 @@ export class XtraceMemoryManager {
         ...(options.timeout ? { 'X-Stainless-Timeout': String(Math.trunc(options.timeout / 1000)) } : {}),
         ...getPlatformHeaders(),
       },
-      await this.authHeaders(
-        options,
-        options.__security ?? { apiKeyHeaderAuth: true, bearerTokenAuth: true, orgIDAuth: true },
-      ),
+      await this.authHeaders(options),
       this._options.defaultHeaders,
       bodyHeaders,
       options.headers,
@@ -815,26 +797,36 @@ export class XtraceMemoryManager {
   static toFile = Uploads.toFile;
 
   memories: API.Memories = new API.Memories(this);
+  /**
+   * Episode flush, usage counters, facets
+   */
+  usage: API.Usage = new API.Usage(this);
 }
 
 XtraceMemoryManager.Memories = Memories;
+XtraceMemoryManager.Usage = Usage;
 
 export declare namespace XtraceMemoryManager {
   export type RequestOptions = Opts.RequestOptions;
 
   export {
     Memories as Memories,
-    type Artifact as Artifact,
-    type Episode as Episode,
-    type Fact as Fact,
-    type MemoryItem as MemoryItem,
-    type MemoryListResponse as MemoryListResponse,
-    type MemoryDeleteResponse as MemoryDeleteResponse,
-    type MemoryAddResponse as MemoryAddResponse,
+    type BaseMemory as BaseMemory,
+    type Memory as Memory,
+    type MemoryList as MemoryList,
+    type MemoryCreateResponse as MemoryCreateResponse,
+    type MemoryRetrieveResponse as MemoryRetrieveResponse,
+    type MemoryFlushResponse as MemoryFlushResponse,
+    type MemoryGetJobStatusResponse as MemoryGetJobStatusResponse,
+    type MemoryListFacetsResponse as MemoryListFacetsResponse,
     type MemorySearchResponse as MemorySearchResponse,
+    type MemoryCreateParams as MemoryCreateParams,
+    type MemoryRetrieveParams as MemoryRetrieveParams,
     type MemoryUpdateParams as MemoryUpdateParams,
     type MemoryListParams as MemoryListParams,
-    type MemoryAddParams as MemoryAddParams,
+    type MemoryFlushParams as MemoryFlushParams,
     type MemorySearchParams as MemorySearchParams,
   };
+
+  export { Usage as Usage, type UsageRetrieveResponse as UsageRetrieveResponse };
 }

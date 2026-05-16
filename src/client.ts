@@ -50,7 +50,7 @@ type Environment = keyof typeof environments;
 
 export interface ClientOptions {
   /**
-   * API key (xtk_...). Sent as `Authorization: Token <key>`.
+   * API key (xtk_...). Sent as `Authorization: Bearer <key>`.
    */
   apiKey: string;
 

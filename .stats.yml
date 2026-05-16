@@ -1,4 +1,4 @@
-configured_endpoints: 4
-openapi_spec_url: https://storage.googleapis.com/stainless-sdk-openapi-specs/xtrace/xtrace-memory-manager-e5904be37216fec68e4785cc22f972f16f9127df8c7942dcdefb8f86e57c3505.yml
-openapi_spec_hash: efaa4040990bc7929208cc7a28403dd2
-config_hash: ea2924ae0369989578a6f820c5ba43ad
+configured_endpoints: 7
+openapi_spec_url: https://storage.googleapis.com/stainless-sdk-openapi-specs/xtrace/xtrace-memory-manager-5a6b512c458332b3d1e0246dd72b730da6ec1ac40b3e95fa354e6826ea1a61c1.yml
+openapi_spec_hash: f5b0148c800f181ccee41a1195070c8b
+config_hash: ab2b222e7eadadfcdb8f03922473ee62

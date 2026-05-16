@@ -8,8 +8,8 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "paths": {
-      "xtrace-memory-manager/*": ["./src/*"],
-      "xtrace-memory-manager": ["./src/index.ts"]
+      "@xtraceai/memory/*": ["./src/*"],
+      "@xtraceai/memory": ["./src/index.ts"]
     },
     "noEmit": true,
 

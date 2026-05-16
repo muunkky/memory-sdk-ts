@@ -1,10 +1,10 @@
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 
-import { APIPromise } from 'xtrace-memory-manager/core/api-promise';
+import { APIPromise } from '@xtraceai/memory/core/api-promise';
 
 import util from 'node:util';
-import XtraceMemoryManager from 'xtrace-memory-manager';
-import { APIUserAbortError } from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
+import { APIUserAbortError } from '@xtraceai/memory';
 const defaultFetch = fetch;
 
 describe('instantiate client', () => {
@@ -20,7 +20,7 @@ describe('instantiate client', () => {
   });
 
   describe('defaultHeaders', () => {
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       baseURL: 'http://localhost:5000/',
       defaultHeaders: { 'X-My-Default-Header': '2' },
       apiKey: 'My API Key',
@@ -55,14 +55,14 @@ describe('instantiate client', () => {
 
     beforeEach(() => {
       process.env = { ...env };
-      process.env['XTRACE_MEMORY_MANAGER_LOG'] = undefined;
+      process.env['XTRACEAI_LOG'] = undefined;
     });
 
     afterEach(() => {
       process.env = env;
     });
 
-    const forceAPIResponseForClient = async (client: XtraceMemoryManager) => {
+    const forceAPIResponseForClient = async (client: Xtraceai) => {
       await new APIPromise(
         client,
         Promise.resolve({
@@ -88,7 +88,7 @@ describe('instantiate client', () => {
         error: jest.fn(),
       };
 
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         logger: logger,
         logLevel: 'debug',
         apiKey: 'My API Key',
@@ -100,7 +100,7 @@ describe('instantiate client', () => {
     });
 
     test('default logLevel is warn', async () => {
-      const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+      const client = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
       expect(client.logLevel).toBe('warn');
     });
 
@@ -113,7 +113,7 @@ describe('instantiate client', () => {
         error: jest.fn(),
       };
 
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         logger: logger,
         logLevel: 'info',
         apiKey: 'My API Key',
@@ -133,8 +133,8 @@ describe('instantiate client', () => {
         error: jest.fn(),
       };
 
-      process.env['XTRACE_MEMORY_MANAGER_LOG'] = 'debug';
-      const client = new XtraceMemoryManager({
+      process.env['XTRACEAI_LOG'] = 'debug';
+      const client = new Xtraceai({
         logger: logger,
         apiKey: 'My API Key',
         orgID: 'My Org ID',
@@ -154,15 +154,15 @@ describe('instantiate client', () => {
         error: jest.fn(),
       };
 
-      process.env['XTRACE_MEMORY_MANAGER_LOG'] = 'not a log level';
-      const client = new XtraceMemoryManager({
+      process.env['XTRACEAI_LOG'] = 'not a log level';
+      const client = new Xtraceai({
         logger: logger,
         apiKey: 'My API Key',
         orgID: 'My Org ID',
       });
       expect(client.logLevel).toBe('warn');
       expect(warnMock).toHaveBeenCalledWith(
-        'process.env[\'XTRACE_MEMORY_MANAGER_LOG\'] was set to "not a log level", expected one of ["off","error","warn","info","debug"]',
+        'process.env[\'XTRACEAI_LOG\'] was set to "not a log level", expected one of ["off","error","warn","info","debug"]',
       );
     });
 
@@ -175,8 +175,8 @@ describe('instantiate client', () => {
         error: jest.fn(),
       };
 
-      process.env['XTRACE_MEMORY_MANAGER_LOG'] = 'debug';
-      const client = new XtraceMemoryManager({
+      process.env['XTRACEAI_LOG'] = 'debug';
+      const client = new Xtraceai({
         logger: logger,
         logLevel: 'off',
         apiKey: 'My API Key',
@@ -196,8 +196,8 @@ describe('instantiate client', () => {
         error: jest.fn(),
       };
 
-      process.env['XTRACE_MEMORY_MANAGER_LOG'] = 'not a log level';
-      const client = new XtraceMemoryManager({
+      process.env['XTRACEAI_LOG'] = 'not a log level';
+      const client = new Xtraceai({
         logger: logger,
         logLevel: 'debug',
         apiKey: 'My API Key',
@@ -210,7 +210,7 @@ describe('instantiate client', () => {
 
   describe('defaultQuery', () => {
     test('with null query params given', () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'http://localhost:5000/',
         defaultQuery: { apiVersion: 'foo' },
         apiKey: 'My API Key',
@@ -220,7 +220,7 @@ describe('instantiate client', () => {
     });
 
     test('multiple default query params', () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'http://localhost:5000/',
         defaultQuery: { apiVersion: 'foo', hello: 'world' },
         apiKey: 'My API Key',
@@ -230,7 +230,7 @@ describe('instantiate client', () => {
     });
 
     test('overriding with `undefined`', () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'http://localhost:5000/',
         defaultQuery: { hello: 'world' },
         apiKey: 'My API Key',
@@ -241,7 +241,7 @@ describe('instantiate client', () => {
   });
 
   test('custom fetch', async () => {
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       baseURL: 'http://localhost:5000/',
       apiKey: 'My API Key',
       orgID: 'My Org ID',
@@ -260,7 +260,7 @@ describe('instantiate client', () => {
 
   test('explicit global fetch', async () => {
     // make sure the global fetch type is assignable to our Fetch type
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       baseURL: 'http://localhost:5000/',
       apiKey: 'My API Key',
       orgID: 'My Org ID',
@@ -269,7 +269,7 @@ describe('instantiate client', () => {
   });
 
   test('custom signal', async () => {
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       baseURL: process.env['TEST_API_BASE_URL'] ?? 'http://127.0.0.1:4010',
       apiKey: 'My API Key',
       orgID: 'My Org ID',
@@ -302,7 +302,7 @@ describe('instantiate client', () => {
       return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
     };
 
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       baseURL: 'http://localhost:5000/',
       apiKey: 'My API Key',
       orgID: 'My Org ID',
@@ -315,7 +315,7 @@ describe('instantiate client', () => {
 
   describe('baseUrl', () => {
     test('trailing slash', () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'http://localhost:5000/custom/path/',
         apiKey: 'My API Key',
         orgID: 'My Org ID',
@@ -324,7 +324,7 @@ describe('instantiate client', () => {
     });
 
     test('no trailing slash', () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'http://localhost:5000/custom/path',
         apiKey: 'My API Key',
         orgID: 'My Org ID',
@@ -333,11 +333,11 @@ describe('instantiate client', () => {
     });
 
     afterEach(() => {
-      process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] = undefined;
+      process.env['XTRACEAI_BASE_URL'] = undefined;
     });
 
     test('explicit option', () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'https://example.com',
         apiKey: 'My API Key',
         orgID: 'My Org ID',
@@ -346,38 +346,38 @@ describe('instantiate client', () => {
     });
 
     test('env variable', () => {
-      process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] = 'https://example.com/from_env';
-      const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+      process.env['XTRACEAI_BASE_URL'] = 'https://example.com/from_env';
+      const client = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
       expect(client.baseURL).toEqual('https://example.com/from_env');
     });
 
     test('empty env variable', () => {
-      process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] = ''; // empty
-      const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+      process.env['XTRACEAI_BASE_URL'] = ''; // empty
+      const client = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
       expect(client.baseURL).toEqual('https://api.xtrace.ai');
     });
 
     test('blank env variable', () => {
-      process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] = '  '; // blank
-      const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+      process.env['XTRACEAI_BASE_URL'] = '  '; // blank
+      const client = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
       expect(client.baseURL).toEqual('https://api.xtrace.ai');
     });
 
     test('env variable with environment', () => {
-      process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] = 'https://example.com/from_env';
+      process.env['XTRACEAI_BASE_URL'] = 'https://example.com/from_env';
 
       expect(
         () =>
-          new XtraceMemoryManager({
+          new Xtraceai({
             apiKey: 'My API Key',
             orgID: 'My Org ID',
             environment: 'production',
           }),
       ).toThrowErrorMatchingInlineSnapshot(
-        `"Ambiguous URL; The \`baseURL\` option (or XTRACE_MEMORY_MANAGER_BASE_URL env var) and the \`environment\` option are given. If you want to use the environment you must pass baseURL: null"`,
+        `"Ambiguous URL; The \`baseURL\` option (or XTRACEAI_BASE_URL env var) and the \`environment\` option are given. If you want to use the environment you must pass baseURL: null"`,
       );
 
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         apiKey: 'My API Key',
         orgID: 'My Org ID',
         baseURL: null,
@@ -387,14 +387,14 @@ describe('instantiate client', () => {
     });
 
     test('in request options', () => {
-      const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+      const client = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
       expect(client.buildURL('/foo', null, 'http://localhost:5000/option')).toEqual(
         'http://localhost:5000/option/foo',
       );
     });
 
     test('in request options overridden by client options', () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         apiKey: 'My API Key',
         orgID: 'My Org ID',
         baseURL: 'http://localhost:5000/client',
@@ -405,8 +405,8 @@ describe('instantiate client', () => {
     });
 
     test('in request options overridden by env variable', () => {
-      process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] = 'http://localhost:5000/env';
-      const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+      process.env['XTRACEAI_BASE_URL'] = 'http://localhost:5000/env';
+      const client = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
       expect(client.buildURL('/foo', null, 'http://localhost:5000/option')).toEqual(
         'http://localhost:5000/env/foo',
       );
@@ -414,7 +414,7 @@ describe('instantiate client', () => {
   });
 
   test('maxRetries option is correctly set', () => {
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       maxRetries: 4,
       apiKey: 'My API Key',
       orgID: 'My Org ID',
@@ -422,13 +422,13 @@ describe('instantiate client', () => {
     expect(client.maxRetries).toEqual(4);
 
     // default
-    const client2 = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+    const client2 = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
     expect(client2.maxRetries).toEqual(2);
   });
 
   describe('withOptions', () => {
     test('creates a new client with overridden options', async () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'http://localhost:5000/',
         maxRetries: 3,
         apiKey: 'My API Key',
@@ -454,7 +454,7 @@ describe('instantiate client', () => {
     });
 
     test('inherits options from the parent client', async () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'http://localhost:5000/',
         defaultHeaders: { 'X-Test-Header': 'test-value' },
         defaultQuery: { 'test-param': 'test-value' },
@@ -474,7 +474,7 @@ describe('instantiate client', () => {
     });
 
     test('respects runtime property changes when creating new client', () => {
-      const client = new XtraceMemoryManager({
+      const client = new Xtraceai({
         baseURL: 'http://localhost:5000/',
         timeout: 1000,
         apiKey: 'My API Key',
@@ -504,28 +504,10 @@ describe('instantiate client', () => {
       expect(newClient.buildURL('/bar', null)).toEqual('http://localhost:6000/bar');
     });
   });
-
-  test('with environment variable arguments', () => {
-    // set options via env var
-    process.env['XTRACE_MEMORY_MANAGER_API_KEY'] = 'My API Key';
-    process.env['XTRACE_MEMORY_MANAGER_ORG_ID'] = 'My Org ID';
-    const client = new XtraceMemoryManager();
-    expect(client.apiKey).toBe('My API Key');
-    expect(client.orgID).toBe('My Org ID');
-  });
-
-  test('with overridden environment variable arguments', () => {
-    // set options via env var
-    process.env['XTRACE_MEMORY_MANAGER_API_KEY'] = 'another My API Key';
-    process.env['XTRACE_MEMORY_MANAGER_ORG_ID'] = 'another My Org ID';
-    const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
-    expect(client.apiKey).toBe('My API Key');
-    expect(client.orgID).toBe('My Org ID');
-  });
 });
 
 describe('request building', () => {
-  const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+  const client = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
 
   describe('custom headers', () => {
     test('handles undefined', async () => {
@@ -544,7 +526,7 @@ describe('request building', () => {
 });
 
 describe('default encoder', () => {
-  const client = new XtraceMemoryManager({ apiKey: 'My API Key', orgID: 'My Org ID' });
+  const client = new Xtraceai({ apiKey: 'My API Key', orgID: 'My Org ID' });
 
   class Serializable {
     toJSON() {
@@ -629,7 +611,7 @@ describe('retries', () => {
       return new Response(JSON.stringify({ a: 1 }), { headers: { 'Content-Type': 'application/json' } });
     };
 
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       apiKey: 'My API Key',
       orgID: 'My Org ID',
       timeout: 10,
@@ -664,7 +646,7 @@ describe('retries', () => {
       return new Response(JSON.stringify({ a: 1 }), { headers: { 'Content-Type': 'application/json' } });
     };
 
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       apiKey: 'My API Key',
       orgID: 'My Org ID',
       fetch: testFetch,
@@ -693,7 +675,7 @@ describe('retries', () => {
       capturedRequest = init;
       return new Response(JSON.stringify({ a: 1 }), { headers: { 'Content-Type': 'application/json' } });
     };
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       apiKey: 'My API Key',
       orgID: 'My Org ID',
       fetch: testFetch,
@@ -727,7 +709,7 @@ describe('retries', () => {
       capturedRequest = init;
       return new Response(JSON.stringify({ a: 1 }), { headers: { 'Content-Type': 'application/json' } });
     };
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       apiKey: 'My API Key',
       orgID: 'My Org ID',
       fetch: testFetch,
@@ -761,7 +743,7 @@ describe('retries', () => {
       capturedRequest = init;
       return new Response(JSON.stringify({ a: 1 }), { headers: { 'Content-Type': 'application/json' } });
     };
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       apiKey: 'My API Key',
       orgID: 'My Org ID',
       fetch: testFetch,
@@ -796,7 +778,7 @@ describe('retries', () => {
       return new Response(JSON.stringify({ a: 1 }), { headers: { 'Content-Type': 'application/json' } });
     };
 
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       apiKey: 'My API Key',
       orgID: 'My Org ID',
       fetch: testFetch,
@@ -830,7 +812,7 @@ describe('retries', () => {
       return new Response(JSON.stringify({ a: 1 }), { headers: { 'Content-Type': 'application/json' } });
     };
 
-    const client = new XtraceMemoryManager({
+    const client = new Xtraceai({
       apiKey: 'My API Key',
       orgID: 'My Org ID',
       fetch: testFetch,

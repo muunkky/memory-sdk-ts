@@ -1,21 +1,18 @@
-# Xtrace Memory Manager TypeScript API Library
+# Xtraceai TypeScript API Library
 
-[![NPM version](<https://img.shields.io/npm/v/xtrace-memory-manager.svg?label=npm%20(stable)>)](https://npmjs.org/package/xtrace-memory-manager) ![npm bundle size](https://img.shields.io/bundlephobia/minzip/xtrace-memory-manager)
+[![NPM version](<https://img.shields.io/npm/v/@xtraceai/memory.svg?label=npm%20(stable)>)](https://npmjs.org/package/@xtraceai/memory) ![npm bundle size](https://img.shields.io/bundlephobia/minzip/@xtraceai/memory)
 
-This library provides convenient access to the Xtrace Memory Manager REST API from server-side TypeScript or JavaScript.
+This library provides convenient access to the Xtraceai REST API from server-side TypeScript or JavaScript.
 
-The full API of this library can be found in [api.md](api.md).
+The REST API documentation can be found on [docs.xtrace.ai](https://docs.xtrace.ai). The full API of this library can be found in [api.md](api.md).
 
 It is generated with [Stainless](https://www.stainless.com/).
 
 ## Installation
 
 ```sh
-npm install git+ssh://git@github.com:stainless-sdks/xtrace-memory-manager-typescript.git
+npm install @xtraceai/memory
 ```
-
-> [!NOTE]
-> Once this package is [published to npm](https://www.stainless.com/docs/guides/publish), this will become: `npm install xtrace-memory-manager`
 
 ## Usage
 
@@ -23,21 +20,21 @@ The full API of this library can be found in [api.md](api.md).
 
 <!-- prettier-ignore -->
 ```js
-import XtraceMemoryManager from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
 
-const client = new XtraceMemoryManager({
+const client = new Xtraceai({
   apiKey: 'My API Key',
   orgID: 'My Org ID',
-  environment: 'environment_1', // defaults to 'production'
+  environment: 'staging', // defaults to 'production'
 });
 
-const memory = await client.memories.create({
-  conv_id: 'conv-2026-05-15-abc',
-  messages: [{ content: 'I like Thai food and spicy dishes.', role: 'user' }],
+const response = await client.memories.ingest({
+  conv_id: 'conv_2026_05_16',
+  messages: [{ role: 'user', content: 'My favorite food is pad see ew.' }],
   user_id: 'alice',
 });
 
-console.log(memory.id);
+console.log(response.id);
 ```
 
 ### Request & Response types
@@ -46,20 +43,19 @@ This library includes TypeScript definitions for all request params and response
 
 <!-- prettier-ignore -->
 ```ts
-import XtraceMemoryManager from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
 
-const client = new XtraceMemoryManager({
+const client = new Xtraceai({
   apiKey: 'My API Key',
   orgID: 'My Org ID',
-  environment: 'environment_1', // defaults to 'production'
+  environment: 'staging', // defaults to 'production'
 });
 
-const params: XtraceMemoryManager.MemoryCreateParams = {
-  conv_id: 'conv-2026-05-15-abc',
-  messages: [{ content: 'I like Thai food and spicy dishes.', role: 'user' }],
-  user_id: 'alice',
+const params: Xtraceai.MemorySearchParams = {
+  query: 'who likes thai food?',
+  filters: { user_id: 'alice' },
 };
-const memory: XtraceMemoryManager.MemoryCreateResponse = await client.memories.create(params);
+const response: Xtraceai.MemorySearchResponse = await client.memories.search(params);
 ```
 
 Documentation for each method, request param, and response field are available in docstrings and will appear on hover in most modern editors.
@@ -72,14 +68,13 @@ a subclass of `APIError` will be thrown:
 
 <!-- prettier-ignore -->
 ```ts
-const memory = await client.memories
-  .create({
-    conv_id: 'conv-2026-05-15-abc',
-    messages: [{ content: 'I like Thai food and spicy dishes.', role: 'user' }],
-    user_id: 'alice',
+const response = await client.memories
+  .search({
+    query: 'who likes thai food?',
+    filters: { user_id: 'alice' },
   })
   .catch(async (err) => {
-    if (err instanceof XtraceMemoryManager.APIError) {
+    if (err instanceof Xtraceai.APIError) {
       console.log(err.status); // 400
       console.log(err.name); // BadRequestError
       console.log(err.headers); // {server: 'nginx', ...}
@@ -113,17 +108,14 @@ You can use the `maxRetries` option to configure or disable this:
 <!-- prettier-ignore -->
 ```js
 // Configure the default for all requests:
-const client = new XtraceMemoryManager({
-  apiKey: 'My API Key',
-  orgID: 'My Org ID',
+const client = new Xtraceai({
   maxRetries: 0, // default is 2
 });
 
 // Or, configure per-request:
-await client.memories.create({
-  conv_id: 'conv-2026-05-15-abc',
-  messages: [{ content: 'I like Thai food and spicy dishes.', role: 'user' }],
-  user_id: 'alice',
+await client.memories.search({
+  query: 'who likes thai food?',
+  filters: { user_id: 'alice' },
 }, {
   maxRetries: 5,
 });
@@ -136,17 +128,14 @@ Requests time out after 1 minute by default. You can configure this with a `time
 <!-- prettier-ignore -->
 ```ts
 // Configure the default for all requests:
-const client = new XtraceMemoryManager({
-  apiKey: 'My API Key',
-  orgID: 'My Org ID',
+const client = new Xtraceai({
   timeout: 20 * 1000, // 20 seconds (default is 1 minute)
 });
 
 // Override per-request:
-await client.memories.create({
-  conv_id: 'conv-2026-05-15-abc',
-  messages: [{ content: 'I like Thai food and spicy dishes.', role: 'user' }],
-  user_id: 'alice',
+await client.memories.search({
+  query: 'who likes thai food?',
+  filters: { user_id: 'alice' },
 }, {
   timeout: 5 * 1000,
 });
@@ -168,27 +157,25 @@ Unlike `.asResponse()` this method consumes the body, returning once it is parse
 
 <!-- prettier-ignore -->
 ```ts
-const client = new XtraceMemoryManager();
+const client = new Xtraceai();
 
 const response = await client.memories
-  .create({
-    conv_id: 'conv-2026-05-15-abc',
-    messages: [{ content: 'I like Thai food and spicy dishes.', role: 'user' }],
-    user_id: 'alice',
+  .search({
+    query: 'who likes thai food?',
+    filters: { user_id: 'alice' },
   })
   .asResponse();
 console.log(response.headers.get('X-My-Header'));
 console.log(response.statusText); // access the underlying Response object
 
-const { data: memory, response: raw } = await client.memories
-  .create({
-    conv_id: 'conv-2026-05-15-abc',
-    messages: [{ content: 'I like Thai food and spicy dishes.', role: 'user' }],
-    user_id: 'alice',
+const { data: response, response: raw } = await client.memories
+  .search({
+    query: 'who likes thai food?',
+    filters: { user_id: 'alice' },
   })
   .withResponse();
 console.log(raw.headers.get('X-My-Header'));
-console.log(memory.id);
+console.log(response.data);
 ```
 
 ### Logging
@@ -201,13 +188,13 @@ console.log(memory.id);
 
 The log level can be configured in two ways:
 
-1. Via the `XTRACE_MEMORY_MANAGER_LOG` environment variable
+1. Via the `XTRACEAI_LOG` environment variable
 2. Using the `logLevel` client option (overrides the environment variable if set)
 
 ```ts
-import XtraceMemoryManager from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
 
-const client = new XtraceMemoryManager({
+const client = new Xtraceai({
   logLevel: 'debug', // Show all log messages
 });
 ```
@@ -233,13 +220,13 @@ When providing a custom logger, the `logLevel` option still controls which messa
 below the configured level will not be sent to your logger.
 
 ```ts
-import XtraceMemoryManager from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
 import pino from 'pino';
 
 const logger = pino();
 
-const client = new XtraceMemoryManager({
-  logger: logger.child({ name: 'XtraceMemoryManager' }),
+const client = new Xtraceai({
+  logger: logger.child({ name: 'Xtraceai' }),
   logLevel: 'debug', // Send all messages to pino, allowing it to filter
 });
 ```
@@ -268,7 +255,7 @@ parameter. This library doesn't validate at runtime that the request matches the
 send will be sent as-is.
 
 ```ts
-client.memories.create({
+client.memories.ingest({
   // ...
   // @ts-expect-error baz is not yet public
   baz: 'undocumented option',
@@ -302,10 +289,10 @@ globalThis.fetch = fetch;
 Or pass it to the client:
 
 ```ts
-import XtraceMemoryManager from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
 import fetch from 'my-fetch';
 
-const client = new XtraceMemoryManager({ fetch });
+const client = new Xtraceai({ fetch });
 ```
 
 ### Fetch options
@@ -313,9 +300,9 @@ const client = new XtraceMemoryManager({ fetch });
 If you want to set custom `fetch` options without overriding the `fetch` function, you can provide a `fetchOptions` object when instantiating the client or making a request. (Request-specific options override client options.)
 
 ```ts
-import XtraceMemoryManager from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
 
-const client = new XtraceMemoryManager({
+const client = new Xtraceai({
   fetchOptions: {
     // `RequestInit` options
   },
@@ -330,11 +317,11 @@ options to requests:
 <img src="https://raw.githubusercontent.com/stainless-api/sdk-assets/refs/heads/main/node.svg" align="top" width="18" height="21"> **Node** <sup>[[docs](https://github.com/nodejs/undici/blob/main/docs/docs/api/ProxyAgent.md#example---proxyagent-with-fetch)]</sup>
 
 ```ts
-import XtraceMemoryManager from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
 import * as undici from 'undici';
 
 const proxyAgent = new undici.ProxyAgent('http://localhost:8888');
-const client = new XtraceMemoryManager({
+const client = new Xtraceai({
   fetchOptions: {
     dispatcher: proxyAgent,
   },
@@ -344,9 +331,9 @@ const client = new XtraceMemoryManager({
 <img src="https://raw.githubusercontent.com/stainless-api/sdk-assets/refs/heads/main/bun.svg" align="top" width="18" height="21"> **Bun** <sup>[[docs](https://bun.sh/guides/http/proxy)]</sup>
 
 ```ts
-import XtraceMemoryManager from 'xtrace-memory-manager';
+import Xtraceai from '@xtraceai/memory';
 
-const client = new XtraceMemoryManager({
+const client = new Xtraceai({
   fetchOptions: {
     proxy: 'http://localhost:8888',
   },
@@ -356,10 +343,10 @@ const client = new XtraceMemoryManager({
 <img src="https://raw.githubusercontent.com/stainless-api/sdk-assets/refs/heads/main/deno.svg" align="top" width="18" height="21"> **Deno** <sup>[[docs](https://docs.deno.com/api/deno/~/Deno.createHttpClient)]</sup>
 
 ```ts
-import XtraceMemoryManager from 'npm:xtrace-memory-manager';
+import Xtraceai from 'npm:@xtraceai/memory';
 
 const httpClient = Deno.createHttpClient({ proxy: { url: 'http://localhost:8888' } });
-const client = new XtraceMemoryManager({
+const client = new Xtraceai({
   fetchOptions: {
     client: httpClient,
   },
@@ -378,7 +365,7 @@ This package generally follows [SemVer](https://semver.org/spec/v2.0.0.html) con
 
 We take backwards-compatibility seriously and work hard to ensure you can rely on a smooth upgrade experience.
 
-We are keen for your feedback; please open an [issue](https://www.github.com/stainless-sdks/xtrace-memory-manager-typescript/issues) with questions, bugs, or suggestions.
+We are keen for your feedback; please open an [issue](https://www.github.com/XTraceAI/memory-sdk-ts/issues) with questions, bugs, or suggestions.
 
 ## Requirements
 

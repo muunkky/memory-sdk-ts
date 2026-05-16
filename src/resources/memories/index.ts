@@ -1,5 +1,6 @@
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 
+export { Jobs, type JobRetrieveResponse } from './jobs';
 export {
   Memories,
   type MemoryRetrieveResponse,
@@ -11,4 +12,4 @@ export {
   type MemoryListParams,
   type MemoryIngestParams,
   type MemorySearchParams,
-} from './memories/memories';
+} from './memories';

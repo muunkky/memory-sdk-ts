@@ -19,16 +19,16 @@ import * as API from './resources/index';
 import { APIPromise } from './core/api-promise';
 import {
   Memories,
-  Memory,
-  MemoryCreateParams,
-  MemoryCreateResponse,
-  MemoryGetJobStatusResponse,
+  MemoryIngestParams,
+  MemoryIngestResponse,
   MemoryListParams,
   MemoryListResponse,
+  MemoryRetrieveResponse,
   MemorySearchParams,
   MemorySearchResponse,
-} from './resources/memories';
-import { Usage } from './resources/usage';
+  MemoryUpdateParams,
+  MemoryUpdateResponse,
+} from './resources/memories/memories';
 import { type Fetch } from './internal/builtin-types';
 import { HeadersLike, NullableHeaders, buildHeaders } from './internal/headers';
 import { FinalRequestOptions, RequestOptions } from './internal/request-options';
@@ -44,34 +44,34 @@ import { isEmptyObj } from './internal/utils/values';
 
 const environments = {
   production: 'https://api.xtrace.ai',
-  environment_1: 'https://api.staging.xtrace.ai',
+  staging: 'https://api.staging.xtrace.ai',
 };
 type Environment = keyof typeof environments;
 
 export interface ClientOptions {
   /**
-   * API key. Format: `Authorization: Bearer xtk_<key>`.
+   * API key (xtk_...). Sent as `Authorization: Token <key>`.
    */
-  apiKey?: string | undefined;
+  apiKey: string;
 
   /**
-   * Org identifier. Required on every request; must match the org the API key belongs to. The header is required because auth records are stored keyed by `(org_id, api_key_hash)` in DynamoDB — without it the auth layer cannot do a single-key lookup.
+   * Organization id.
    */
-  orgID?: string | undefined;
+  orgID: string;
 
   /**
    * Specifies the environment to use for the API.
    *
    * Each environment maps to a different base URL:
    * - `production` corresponds to `https://api.xtrace.ai`
-   * - `environment_1` corresponds to `https://api.staging.xtrace.ai`
+   * - `staging` corresponds to `https://api.staging.xtrace.ai`
    */
   environment?: Environment | undefined;
 
   /**
    * Override the default base URL for the API, e.g., "https://api.example.com/v2/"
    *
-   * Defaults to process.env['XTRACE_MEMORY_MANAGER_BASE_URL'].
+   * Defaults to process.env['XTRACEAI_BASE_URL'].
    */
   baseURL?: string | null | undefined;
 
@@ -125,7 +125,7 @@ export interface ClientOptions {
   /**
    * Set the log level.
    *
-   * Defaults to process.env['XTRACE_MEMORY_MANAGER_LOG'] or 'warn' if it isn't set.
+   * Defaults to process.env['XTRACEAI_LOG'] or 'warn' if it isn't set.
    */
   logLevel?: LogLevel | undefined;
 
@@ -138,9 +138,9 @@ export interface ClientOptions {
 }
 
 /**
- * API Client for interfacing with the Xtrace Memory Manager API.
+ * API Client for interfacing with the Xtraceai API.
  */
-export class XtraceMemoryManager {
+export class Xtraceai {
   apiKey: string;
   orgID: string;
 
@@ -157,12 +157,12 @@ export class XtraceMemoryManager {
   private _options: ClientOptions;
 
   /**
-   * API Client for interfacing with the Xtrace Memory Manager API.
+   * API Client for interfacing with the Xtraceai API.
    *
-   * @param {string | undefined} [opts.apiKey=process.env['XTRACE_MEMORY_MANAGER_API_KEY'] ?? undefined]
-   * @param {string | undefined} [opts.orgID=process.env['XTRACE_MEMORY_MANAGER_ORG_ID'] ?? undefined]
+   * @param {string} opts.apiKey
+   * @param {string} opts.orgID
    * @param {Environment} [opts.environment=production] - Specifies the environment URL to use for the API.
-   * @param {string} [opts.baseURL=process.env['XTRACE_MEMORY_MANAGER_BASE_URL'] ?? https://api.xtrace.ai] - Override the default base URL for the API.
+   * @param {string} [opts.baseURL=process.env['XTRACEAI_BASE_URL'] ?? https://api.xtrace.ai] - Override the default base URL for the API.
    * @param {number} [opts.timeout=1 minute] - The maximum amount of time (in milliseconds) the client will wait for a response before timing out.
    * @param {MergedRequestInit} [opts.fetchOptions] - Additional `RequestInit` options to be passed to `fetch` calls.
    * @param {Fetch} [opts.fetch] - Specify a custom `fetch` function implementation.
@@ -170,20 +170,15 @@ export class XtraceMemoryManager {
    * @param {HeadersLike} opts.defaultHeaders - Default headers to include with every request to the API.
    * @param {Record<string, string | undefined>} opts.defaultQuery - Default query parameters to include with every request to the API.
    */
-  constructor({
-    baseURL = readEnv('XTRACE_MEMORY_MANAGER_BASE_URL'),
-    apiKey = readEnv('XTRACE_MEMORY_MANAGER_API_KEY'),
-    orgID = readEnv('XTRACE_MEMORY_MANAGER_ORG_ID'),
-    ...opts
-  }: ClientOptions = {}) {
+  constructor({ baseURL = readEnv('XTRACEAI_BASE_URL'), apiKey, orgID, ...opts }: ClientOptions) {
     if (apiKey === undefined) {
-      throw new Errors.XtraceMemoryManagerError(
-        "The XTRACE_MEMORY_MANAGER_API_KEY environment variable is missing or empty; either provide it, or instantiate the XtraceMemoryManager client with an apiKey option, like new XtraceMemoryManager({ apiKey: 'My API Key' }).",
+      throw new Errors.XtraceaiError(
+        "Missing required client option apiKey; you need to instantiate the Xtraceai client with an apiKey option, like new Xtraceai({ apiKey: 'My API Key' }).",
       );
     }
     if (orgID === undefined) {
-      throw new Errors.XtraceMemoryManagerError(
-        "The XTRACE_MEMORY_MANAGER_ORG_ID environment variable is missing or empty; either provide it, or instantiate the XtraceMemoryManager client with an orgID option, like new XtraceMemoryManager({ orgID: 'My Org ID' }).",
+      throw new Errors.XtraceaiError(
+        "Missing required client option orgID; you need to instantiate the Xtraceai client with an orgID option, like new Xtraceai({ orgID: 'My Org ID' }).",
       );
     }
 
@@ -196,27 +191,27 @@ export class XtraceMemoryManager {
     };
 
     if (baseURL && opts.environment) {
-      throw new Errors.XtraceMemoryManagerError(
-        'Ambiguous URL; The `baseURL` option (or XTRACE_MEMORY_MANAGER_BASE_URL env var) and the `environment` option are given. If you want to use the environment you must pass baseURL: null',
+      throw new Errors.XtraceaiError(
+        'Ambiguous URL; The `baseURL` option (or XTRACEAI_BASE_URL env var) and the `environment` option are given. If you want to use the environment you must pass baseURL: null',
       );
     }
 
     this.baseURL = options.baseURL || environments[options.environment || 'production'];
-    this.timeout = options.timeout ?? XtraceMemoryManager.DEFAULT_TIMEOUT /* 1 minute */;
+    this.timeout = options.timeout ?? Xtraceai.DEFAULT_TIMEOUT /* 1 minute */;
     this.logger = options.logger ?? console;
     const defaultLogLevel = 'warn';
     // Set default logLevel early so that we can log a warning in parseLogLevel.
     this.logLevel = defaultLogLevel;
     this.logLevel =
       parseLogLevel(options.logLevel, 'ClientOptions.logLevel', this) ??
-      parseLogLevel(readEnv('XTRACE_MEMORY_MANAGER_LOG'), "process.env['XTRACE_MEMORY_MANAGER_LOG']", this) ??
+      parseLogLevel(readEnv('XTRACEAI_LOG'), "process.env['XTRACEAI_LOG']", this) ??
       defaultLogLevel;
     this.fetchOptions = options.fetchOptions;
     this.maxRetries = options.maxRetries ?? 2;
     this.fetch = options.fetch ?? Shims.getDefaultFetch();
     this.#encoder = Opts.FallbackEncoder;
 
-    const customHeadersEnv = readEnv('XTRACE_MEMORY_MANAGER_CUSTOM_HEADERS');
+    const customHeadersEnv = readEnv('XTRACEAI_CUSTOM_HEADERS');
     if (customHeadersEnv) {
       const parsed: Record<string, string> = {};
       for (const line of customHeadersEnv.split('\n')) {
@@ -268,6 +263,18 @@ export class XtraceMemoryManager {
 
   protected validateHeaders({ values, nulls }: NullableHeaders) {
     return;
+  }
+
+  protected async authHeaders(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
+    return buildHeaders([await this.bearerTokenAuth(opts), await this.orgIDAuth(opts)]);
+  }
+
+  protected async bearerTokenAuth(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
+    return buildHeaders([{ Authorization: `Bearer ${this.apiKey}` }]);
+  }
+
+  protected async orgIDAuth(opts: FinalRequestOptions): Promise<NullableHeaders | undefined> {
+    return buildHeaders([{ 'X-Org-Id': this.orgID }]);
   }
 
   /**
@@ -696,6 +703,7 @@ export class XtraceMemoryManager {
         ...(options.timeout ? { 'X-Stainless-Timeout': String(Math.trunc(options.timeout / 1000)) } : {}),
         ...getPlatformHeaders(),
       },
+      await this.authHeaders(options),
       this._options.defaultHeaders,
       bodyHeaders,
       options.headers,
@@ -757,10 +765,10 @@ export class XtraceMemoryManager {
     }
   }
 
-  static XtraceMemoryManager = this;
+  static Xtraceai = this;
   static DEFAULT_TIMEOUT = 60000; // 1 minute
 
-  static XtraceMemoryManagerError = Errors.XtraceMemoryManagerError;
+  static XtraceaiError = Errors.XtraceaiError;
   static APIError = Errors.APIError;
   static APIConnectionError = Errors.APIConnectionError;
   static APIConnectionTimeoutError = Errors.APIConnectionTimeoutError;
@@ -777,26 +785,23 @@ export class XtraceMemoryManager {
   static toFile = Uploads.toFile;
 
   memories: API.Memories = new API.Memories(this);
-  usage: API.Usage = new API.Usage(this);
 }
 
-XtraceMemoryManager.Memories = Memories;
-XtraceMemoryManager.Usage = Usage;
+Xtraceai.Memories = Memories;
 
-export declare namespace XtraceMemoryManager {
+export declare namespace Xtraceai {
   export type RequestOptions = Opts.RequestOptions;
 
   export {
     Memories as Memories,
-    type Memory as Memory,
-    type MemoryCreateResponse as MemoryCreateResponse,
+    type MemoryRetrieveResponse as MemoryRetrieveResponse,
+    type MemoryUpdateResponse as MemoryUpdateResponse,
     type MemoryListResponse as MemoryListResponse,
-    type MemoryGetJobStatusResponse as MemoryGetJobStatusResponse,
+    type MemoryIngestResponse as MemoryIngestResponse,
     type MemorySearchResponse as MemorySearchResponse,
-    type MemoryCreateParams as MemoryCreateParams,
+    type MemoryUpdateParams as MemoryUpdateParams,
     type MemoryListParams as MemoryListParams,
+    type MemoryIngestParams as MemoryIngestParams,
     type MemorySearchParams as MemorySearchParams,
   };
-
-  export { Usage as Usage };
 }

@@ -1,5 +1,5 @@
-import { multipartFormRequestOptions, createForm } from 'xtrace-memory-manager/internal/uploads';
-import { toFile } from 'xtrace-memory-manager/core/uploads';
+import { multipartFormRequestOptions, createForm } from '@xtraceai/memory/internal/uploads';
+import { toFile } from '@xtraceai/memory/core/uploads';
 
 describe('form data validation', () => {
   test('valid values do not error', async () => {

@@ -7,8 +7,8 @@ const config: JestConfigWithTsJest = {
     '^.+\\.(t|j)sx?$': ['@swc/jest', { sourceMaps: 'inline' }],
   },
   moduleNameMapper: {
-    '^xtrace-memory-manager$': '<rootDir>/src/index.ts',
-    '^xtrace-memory-manager/(.*)$': '<rootDir>/src/$1',
+    '^@xtraceai/memory$': '<rootDir>/src/index.ts',
+    '^@xtraceai/memory/(.*)$': '<rootDir>/src/$1',
   },
   modulePathIgnorePatterns: [
     '<rootDir>/ecosystem-tests/',

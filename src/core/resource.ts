@@ -1,11 +1,11 @@
 // File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
 
-import type { XtraceMemoryManager } from '../client';
+import type { Xtraceai } from '../client';
 
 export abstract class APIResource {
-  protected _client: XtraceMemoryManager;
+  protected _client: Xtraceai;
 
-  constructor(client: XtraceMemoryManager) {
+  constructor(client: Xtraceai) {
     this._client = client;
   }
 }

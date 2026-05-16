@@ -22,7 +22,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: '^xtrace-memory-manager(/.*)?',
+              regex: '^@xtraceai/memory(/.*)?',
               message: 'Use a relative import, not a package import.',
             },
           ],

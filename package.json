@@ -43,11 +43,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xtrace-ai/memory-sdk-ts.git"
+    "url": "git+https://github.com/XTraceAI/memory-sdk-ts.git"
   },
-  "homepage": "https://github.com/xtrace-ai/memory-sdk-ts",
+  "homepage": "https://github.com/XTraceAI/memory-sdk-ts",
   "bugs": {
-    "url": "https://github.com/xtrace-ai/memory-sdk-ts/issues"
+    "url": "https://github.com/XTraceAI/memory-sdk-ts/issues"
   },
   "keywords": [
     "xtrace",

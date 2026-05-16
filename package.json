@@ -1,5 +1,5 @@
 {
-  "name": "@xtrace/memory",
+  "name": "@xtraceai/memory",
   "version": "0.0.1",
   "description": "TypeScript SDK for the xtrace memory API",
   "license": "MIT",

@@ -1,6 +1,41 @@
-# @xtraceai/memory
+<div align="center">
 
-TypeScript SDK for the [xtrace memory API](https://api.production.xtrace.ai) — a hosted memory service for AI agents. Send conversation messages, get back structured facts, artifacts, and episodes; search them with vector + filter queries.
+<img src="assets/xtrace_orbital.gif" width="600" alt="xtrace memory">
+
+<p><strong> Long-term memory for AI agents.<br>Send conversation messages, get back structured facts you can search. </strong></p>
+
+<p>
+  <a href="https://www.npmjs.com/package/@xtraceai/memory"><img src="https://img.shields.io/npm/v/@xtraceai/memory?color=blue&label=npm&cacheSeconds=0" alt="npm"></a>
+  <a href="https://github.com/XTraceAI/memory-sdk-ts/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-ffffff?labelColor=d4eaf7&color=2e6cc4" alt="License"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node-18+-339933?logo=node.js&logoColor=white" alt="Node 18+"></a>
+  <a href="https://docs.mem.xtrace.ai"><img src="https://img.shields.io/badge/Docs-docs.mem.xtrace.ai-blue" alt="Docs"></a>
+</p>
+
+<h4>
+  <a href="https://docs.mem.xtrace.ai">Documentation</a> |
+  <a href="https://x.com/XTrace_ai">X</a> |
+  <a href="https://www.linkedin.com/company/xtrace-ai/">LinkedIn</a>
+</h4>
+<sub>Encrypted vector search &rarr; <a href="https://github.com/XTraceAI/xtrace-sdk">xtrace-sdk</a></sub>
+</div>
+
+---
+
+# What is xtrace memory?
+
+`@xtraceai/memory` is the TypeScript SDK for the [xtrace memory API](https://api.production.xtrace.ai) — a hosted memory service for AI agents. Send raw conversation messages and the service extracts structured **facts**, **artifacts**, and **episodes** in the background. Search them later with vector + filter queries to give your agent durable, long-term memory.
+
+- **Ingest** — drop in conversation messages; extraction runs async (or sync for short turns).
+- **Search** — semantic vector search with metadata filters (`user_id`, `conv_id`, …).
+- **Manage** — list, get, update, and soft-delete memories.
+- **Vercel AI SDK** — a drop-in `@xtraceai/memory/ai-sdk` subpath for auto-context and tool-based recall.
+
+Works in Node 18+ (native `fetch`) and in the browser.
+
+# Quick Start
+
+> [!TIP]
+> 🚀 **Create a free account at [app.xtrace.ai](https://app.xtrace.ai)** to get your API key and org ID. The free tier is rate-limited but fully functional.
 
 ## Install
 
@@ -19,7 +54,7 @@ Sign in at [app.xtrace.ai](https://app.xtrace.ai) and grab two values from **Set
 
 Both are required on every request. See the [full docs](https://docs.mem.xtrace.ai/guides/authentication) for storage best practices.
 
-## Quickstart
+## TypeScript SDK
 
 ```ts
 import { MemoryClient } from "@xtraceai/memory";
@@ -121,7 +156,7 @@ const result = streamText({
 
 The model gets two tools: `search_memory(query, limit?)` and `save_memory(fact)`. Use `{ includeSave: false }` for read-only.
 
-## Errors
+## Error handling
 
 All errors extend `MemoryError`. Match on `error.code` for stable machine-readable handling:
 
@@ -139,6 +174,10 @@ try {
 }
 ```
 
-## License
+## Documentation
 
-MIT
+Full documentation at [docs.mem.xtrace.ai](https://docs.mem.xtrace.ai).
+
+# License
+
+MIT — see [LICENSE](LICENSE).

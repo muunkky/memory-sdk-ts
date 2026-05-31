@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Memories, renderMemoriesPrompt } from "./memories.js";
 import type { HttpClient } from "./http.js";
-import type { Memory, SearchRequest } from "./types.js";
+import type { Group, Memory, SearchRequest } from "./types.js";
 
 /** Minimal fact-shaped Memory for fixtures; `over` patches any field. */
 function mem(id: string, text: string, score: number | null, over: Partial<Memory> = {}): Memory {
@@ -33,18 +33,25 @@ function mem(id: string, text: string, score: number | null, over: Partial<Memor
   } as Memory;
 }
 
-/** Fake HttpClient that routes search bodies through `handler`. */
-function fakeHttp(handler: (body: SearchRequest) => Memory[]): {
+/**
+ * Fake HttpClient. `onSearch` produces rows for `POST /v1/memories/search`;
+ * `groups` is returned for the `GET /v1/groups` name-resolution call. `calls`
+ * records only the search bodies.
+ */
+function fakeHttp(opts: { onSearch?: (body: SearchRequest) => Memory[]; groups?: Group[] }): {
   http: HttpClient;
   calls: SearchRequest[];
 } {
   const calls: SearchRequest[] = [];
   const http = {
-    request: async (_method: string, _path: string, options: { body?: SearchRequest } = {}) => {
+    request: async (method: string, path: string, options: { body?: SearchRequest } = {}) => {
+      if (method === "GET" && path === "/v1/groups") {
+        return { body: { object: "list", data: opts.groups ?? [] }, status: 200, requestId: "req_test" };
+      }
       const body = options.body as SearchRequest;
       calls.push(body);
       return {
-        body: { object: "list", data: handler(body), has_more: false, next_cursor: null },
+        body: { object: "list", data: (opts.onSearch ?? (() => []))(body), has_more: false, next_cursor: null },
         status: 200,
         requestId: "req_test",
       };
@@ -55,11 +62,12 @@ function fakeHttp(handler: (body: SearchRequest) => Memory[]): {
 
 describe("Memories.recall", () => {
   it("fans out one compose search per scope and dedupes by id (keeping higher score)", async () => {
-    const { http, calls } = fakeHttp((body) =>
-      body.user_id && !body.group_ids
-        ? [mem("A", "personal-a", 0.9), mem("B", "b", 0.5)]
-        : [mem("B", "b", 0.7), mem("C", "shared-c", 0.8)],
-    );
+    const { http, calls } = fakeHttp({
+      onSearch: (body) =>
+        body.user_id && !body.group_ids
+          ? [mem("A", "personal-a", 0.9), mem("B", "b", 0.5)]
+          : [mem("B", "b", 0.7), mem("C", "shared-c", 0.8)],
+    });
     const res = await new Memories(http).recall({
       query: "q",
       user_id: "alice",
@@ -83,28 +91,59 @@ describe("Memories.recall", () => {
     expect(res.prompt).toContain("- personal-a");
   });
 
+  it("resolves group names from the registry and labels the shared section", async () => {
+    const { http } = fakeHttp({
+      onSearch: (body) =>
+        body.group_ids
+          ? [mem("S", "stays near Shibuya", 0.8, { group_ids: ["grp_tokyo"], categories: ["travel"] })]
+          : [mem("P", "is vegetarian", 0.9, { categories: ["diet"] })],
+      groups: [
+        {
+          object: "group",
+          id: "grp_tokyo",
+          name: "Tokyo trip 2026",
+          prompt: "facts about the Tokyo trip",
+          status: "active",
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: null,
+        },
+      ],
+    });
+    const res = await new Memories(http).recall({
+      query: "q",
+      user_id: "alice",
+      group_ids: ["grp_tokyo"],
+    });
+    expect(res.prompt).toContain("Personal:");
+    expect(res.prompt).toContain("Tokyo trip 2026:");
+    expect(res.prompt).toContain("- stays near Shibuya [travel]");
+    // the opaque id must not leak into the prompt once resolved to a name
+    expect(res.prompt).not.toContain("grp_tokyo");
+  });
+
   it("throws when neither user_id nor group_ids is supplied", async () => {
-    const { http } = fakeHttp(() => []);
+    const { http } = fakeHttp({});
     await expect(new Memories(http).recall({ query: "q" })).rejects.toThrow(/at least one/);
   });
 
   it("only searches the personal scope when no group_ids", async () => {
-    const { http, calls } = fakeHttp(() => [mem("A", "a", 0.5)]);
+    const { http, calls } = fakeHttp({ onSearch: () => [mem("A", "a", 0.5)] });
     await new Memories(http).recall({ query: "q", user_id: "alice" });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.user_id).toBe("alice");
   });
 
   it("caps the merged result to `limit`", async () => {
-    const { http } = fakeHttp((body) =>
-      body.user_id ? [mem("A", "a", 0.9), mem("B", "b", 0.8), mem("C", "c", 0.7)] : [],
-    );
+    const { http } = fakeHttp({
+      onSearch: (body) =>
+        body.user_id ? [mem("A", "a", 0.9), mem("B", "b", 0.8), mem("C", "c", 0.7)] : [],
+    });
     const res = await new Memories(http).recall({ query: "q", user_id: "alice", limit: 2 });
     expect(res.memories.map((m) => m.id)).toEqual(["A", "B"]);
   });
 
   it("passes agent_id/app_id/mode through and honors a custom renderer", async () => {
-    const { http, calls } = fakeHttp(() => [mem("A", "a", 0.5)]);
+    const { http, calls } = fakeHttp({ onSearch: () => [mem("A", "a", 0.5)] });
     const res = await new Memories(http).recall(
       { query: "q", user_id: "alice", agent_id: "bot", app_id: "app1", mode: "retrieve" },
       { render: (ms) => ms.map((m) => m.text).join("|") },
@@ -127,16 +166,24 @@ describe("renderMemoriesPrompt", () => {
     );
   });
 
-  it("splits personal vs shared (group-tagged) into sections, with categories", () => {
-    const out = renderMemoriesPrompt([
-      mem("P", "is vegetarian", 0.9, { categories: ["diet"] }),
-      mem("S", "trip hotel is near Shibuya", 0.8, { group_ids: ["grp_tokyo"], categories: ["travel"] }),
-    ]);
+  it("splits personal vs per-group shared sections, labeled by group name", () => {
+    const out = renderMemoriesPrompt(
+      [
+        mem("P", "is vegetarian", 0.9, { categories: ["diet"] }),
+        mem("S", "trip hotel is near Shibuya", 0.8, { group_ids: ["grp_tokyo"], categories: ["travel"] }),
+      ],
+      { grp_tokyo: "Tokyo trip 2026" },
+    );
     expect(out).toBe(
       "Relevant memories about the user:\n\n" +
         "Personal:\n- is vegetarian [diet] (recorded 2026-01-01)\n\n" +
-        "Shared (group):\n- trip hotel is near Shibuya [travel] (recorded 2026-01-01)",
+        "Tokyo trip 2026:\n- trip hotel is near Shibuya [travel] (recorded 2026-01-01)",
     );
+  });
+
+  it("falls back to an id-based label when the group name is unknown", () => {
+    const out = renderMemoriesPrompt([mem("S", "x", 0.8, { group_ids: ["grp_z"] })]);
+    expect(out).toContain("Shared group grp_z:");
   });
 
   it("returns an empty string for no memories", () => {

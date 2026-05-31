@@ -3,6 +3,7 @@ import { Jobs } from "./jobs.js";
 import type {
   IngestJob,
   IngestRequest,
+  GroupListEnvelope,
   ListEnvelope,
   ListQuery,
   Memory,
@@ -15,12 +16,17 @@ import type {
 
 /**
  * Render memories into a single, ready-to-inject context block — deterministic,
- * no LLM, no wasted tokens. Group-tagged ("shared") and personal memories are
- * split into labeled sections when both are present (a flat list otherwise);
- * each bullet carries the memory's categories and recorded date when available.
- * Pass your own renderer to `recall(..., { render })` for a different shape.
+ * no LLM, no wasted tokens. Personal (untagged) memories and each group's
+ * shared memories become labeled sections; `groupNames` maps a `group_id` to a
+ * human label for the section header (falls back to the id). With no
+ * group-tagged memories it's a flat list. Each bullet carries the memory's
+ * categories and recorded date when available. Pass your own renderer to
+ * `recall(..., { render })` for a different shape.
  */
-export function renderMemoriesPrompt(memories: Memory[]): string {
+export function renderMemoriesPrompt(
+  memories: Memory[],
+  groupNames: Record<string, string> = {},
+): string {
   if (memories.length === 0) return "";
 
   const line = (m: Memory): string => {
@@ -32,19 +38,37 @@ export function renderMemoriesPrompt(memories: Memory[]): string {
   };
 
   const header = "Relevant memories about the user:";
-  const shared = memories.filter((m) => m.group_ids && m.group_ids.length > 0);
   const personal = memories.filter((m) => !m.group_ids || m.group_ids.length === 0);
+  const shared = memories.filter((m) => m.group_ids && m.group_ids.length > 0);
 
-  // Only one kind present → a flat list reads cleaner than a lone section.
-  if (shared.length === 0 || personal.length === 0) {
+  // No group-tagged memories → a flat list reads cleaner than a lone section.
+  if (shared.length === 0) {
     return `${header}\n${memories.map(line).join("\n")}`;
   }
 
-  return [
-    header,
-    `Personal:\n${personal.map(line).join("\n")}`,
-    `Shared (group):\n${shared.map(line).join("\n")}`,
-  ].join("\n\n");
+  // Bucket shared memories by group, in first-appearance order. A memory tagged
+  // to multiple groups appears under each (rare).
+  const order: string[] = [];
+  const byGroup = new Map<string, Memory[]>();
+  for (const m of shared) {
+    for (const gid of m.group_ids) {
+      let bucket = byGroup.get(gid);
+      if (!bucket) {
+        bucket = [];
+        byGroup.set(gid, bucket);
+        order.push(gid);
+      }
+      bucket.push(m);
+    }
+  }
+
+  const sections: string[] = [];
+  if (personal.length > 0) sections.push(`Personal:\n${personal.map(line).join("\n")}`);
+  for (const gid of order) {
+    const label = groupNames[gid] || `Shared group ${gid}`;
+    sections.push(`${label}:\n${byGroup.get(gid)!.map(line).join("\n")}`);
+  }
+  return [header, ...sections].join("\n\n");
 }
 
 export interface IngestOptions {
@@ -150,6 +174,11 @@ export class Memories {
    * facts" — deduped, and without the duplicated framing (or double prompt
    * cost) you'd get from concatenating two assembled `context` strings.
    *
+   * When `group_ids` are supplied, group names are resolved from the registry
+   * (one `GET /v1/groups`, fired in parallel with the searches) so the prompt
+   * can label shared facts by group name rather than opaque id. The lookup is
+   * best-effort — on failure the render falls back to id-based labels.
+   *
    * At least one of `user_id` / `group_ids` must be supplied.
    *
    * @example
@@ -162,7 +191,8 @@ export class Memories {
    */
   async recall(
     params: RecallParams,
-    options: { render?: (memories: Memory[]) => string } & RequestContext = {},
+    options: { render?: (memories: Memory[], groupNames?: Record<string, string>) => string } &
+      RequestContext = {},
   ): Promise<RecallResult> {
     const { query, user_id, group_ids, agent_id, app_id } = params;
     const mode = params.mode ?? "compose";
@@ -183,9 +213,23 @@ export class Memories {
       jobs.push({ scope: "shared", promise: this.search({ ...base, group_ids }, ctx) });
     }
 
-    const envelopes = await Promise.all(
-      jobs.map(async (j) => ({ scope: j.scope, env: await j.promise })),
-    );
+    // Resolve group id → name from the registry (when there are groups to label),
+    // in parallel with the searches. Best-effort: on failure, fall back to {} so
+    // the render uses id-based labels rather than failing the whole recall.
+    const namesJob: Promise<Record<string, string>> = hasGroups
+      ? this.http
+          .request<GroupListEnvelope>("GET", "/v1/groups", {
+            signal: options.signal,
+            requestId: options.requestId,
+          })
+          .then((r) => Object.fromEntries((r.body.data ?? []).map((g) => [g.id, g.name])))
+          .catch((): Record<string, string> => ({}))
+      : Promise.resolve({});
+
+    const [envelopes, groupNames] = await Promise.all([
+      Promise.all(jobs.map(async (j) => ({ scope: j.scope, env: await j.promise }))),
+      namesJob,
+    ]);
 
     // Dedupe across scopes by id; when a memory matches more than one scope,
     // keep the higher-scored copy so the merged ranking stays meaningful.
@@ -207,7 +251,7 @@ export class Memories {
       .slice(0, limit);
 
     const render = options.render ?? renderMemoriesPrompt;
-    return { memories, prompt: render(memories), scopes };
+    return { memories, prompt: render(memories, groupNames), scopes };
   }
 
   /**

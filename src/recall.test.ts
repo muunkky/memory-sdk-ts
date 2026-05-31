@@ -161,6 +161,45 @@ describe("Memories.recall", () => {
     expect(ids).toHaveLength(2);
   });
 
+  it("limit 1 returns the single most-relevant row across scopes (not always personal)", async () => {
+    const { http } = fakeHttp({
+      onSearch: (body) =>
+        body.user_id && !body.group_ids
+          ? [mem("P", "p", 0.4)] // personal, lower score
+          : [mem("S", "s", 0.95, { group_ids: ["grp_x"] })], // shared, higher score
+    });
+    const res = await new Memories(http).recall({
+      query: "q",
+      user_id: "alice",
+      group_ids: ["grp_x"],
+      limit: 1,
+    });
+    expect(res.memories.map((m) => m.id)).toEqual(["S"]); // higher-scoring shared wins the lone slot
+  });
+
+  it("group recall drops the caller's other-group memories from the personal scope", async () => {
+    const { http } = fakeHttp({
+      onSearch: (body) =>
+        body.user_id && !body.group_ids
+          ? [
+              mem("U", "untagged pref", 0.9),
+              mem("A", "alice trip-a note", 0.85, { group_ids: ["grp_a"], user_id: "alice" }),
+              mem("B", "alice trip-b note", 0.8, { group_ids: ["grp_b"], user_id: "alice" }),
+            ]
+          : [], // shared scope empty for this case
+    });
+    const res = await new Memories(http).recall({
+      query: "q",
+      user_id: "alice",
+      group_ids: ["grp_a"],
+      limit: 10,
+    });
+    const ids = res.memories.map((m) => m.id);
+    expect(ids).toContain("U"); // untagged general pref kept
+    expect(ids).toContain("A"); // requested-group fact kept
+    expect(ids).not.toContain("B"); // other-group fact excluded — no cross-trip bleed
+  });
+
   it("passes agent_id/app_id/mode through and honors a custom renderer", async () => {
     const { http, calls } = fakeHttp({ onSearch: () => [mem("A", "a", 0.5)] });
     const res = await new Memories(http).recall(

@@ -302,11 +302,22 @@ export class Memories {
 
     // Per-scope deduped, score-ordered lists, plus the higher-scored copy of any
     // row that appears in both scopes.
+    const requestedSet = hasGroups ? new Set(group_ids) : null;
     const scopes: RecallScopeStat[] = [];
     const bestById = new Map<string, Memory>();
     const lists: Memory[][] = [];
     for (const { scope, env } of envelopes) {
-      const rows = env.data ?? [];
+      let rows = env.data ?? [];
+      // Group recall: the personal scope is "my GENERAL memories", so drop the
+      // caller's rows tagged solely to OTHER (non-requested) groups — otherwise a
+      // recall for one trip bleeds in facts from the user's other trips. Untagged
+      // rows and requested-group rows stay. (A personal-only recall keeps all.)
+      if (scope === "personal" && requestedSet) {
+        rows = rows.filter((m) => {
+          const gids = m.group_ids ?? [];
+          return gids.length === 0 || gids.some((g) => requestedSet.has(g));
+        });
+      }
       scopes.push({ scope, count: rows.length });
       for (const m of rows) {
         const ex = bestById.get(m.id);
@@ -315,11 +326,12 @@ export class Memories {
       lists.push([...rows].sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity)));
     }
 
-    // Round-robin across scopes so neither starves the other. Both searches embed
-    // the same query, so scores ARE comparable — but a plain global top-`limit`
-    // cut could still let a row-rich personal scope fill every slot and drop the
-    // shared scope entirely, defeating a "personal + shared" read. Taking one row
-    // per scope per round guarantees each is represented up to `limit`.
+    // Order scopes by their top score, THEN round-robin across them. The
+    // round-robin keeps either scope from starving the other when there's room;
+    // ordering by head score means a small `limit` (even 1) still yields the
+    // globally most-relevant rows rather than always favoring one scope's slot.
+    // Scores are comparable (both searches embed the same query).
+    lists.sort((a, b) => (b[0]?.score ?? -Infinity) - (a[0]?.score ?? -Infinity));
     const pickedIds = new Set<string>();
     const picked: Memory[] = [];
     for (let i = 0; picked.length < limit; i++) {

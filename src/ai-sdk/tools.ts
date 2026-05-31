@@ -33,6 +33,12 @@ export interface MemoryToolsScope {
   user_id: string;
   /** Scope ingests to this conversation. */
   conv_id: string;
+  /**
+   * Optional shared group ids (e.g. the current trip). When set, `search_memory`
+   * returns the user's own memories **plus** the group's shared memories in one
+   * call (via `client.memories.recall`), deduped into a single result.
+   */
+  group_ids?: string[];
 }
 
 export interface MemoryToolsOptions {
@@ -76,11 +82,24 @@ export function memoryTools(
         .describe("How many memories to return. Default 5."),
     }),
     execute: async ({ query, limit }) => {
-      const { data } = await client.memories.search({
-        query,
-        filters: { user_id: scope.user_id },
-        limit: limit ?? searchLimit,
-      });
+      const effectiveLimit = limit ?? searchLimit;
+      // With group_ids in scope, pull personal + shared in one deduped call.
+      const data = scope.group_ids?.length
+        ? (
+            await client.memories.recall({
+              query,
+              user_id: scope.user_id,
+              group_ids: scope.group_ids,
+              limit: effectiveLimit,
+            })
+          ).memories
+        : (
+            await client.memories.search({
+              query,
+              user_id: scope.user_id,
+              limit: effectiveLimit,
+            })
+          ).data;
       return data.map((m) => ({
         id: m.id,
         text: m.text,

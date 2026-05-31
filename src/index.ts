@@ -1,8 +1,10 @@
 export { MemoryClient } from "./client.js";
 export type { MemoryClientOptions } from "./client.js";
 
-export { Memories } from "./memories.js";
+export { Memories, renderMemoriesPrompt } from "./memories.js";
 export type { IngestOptions, RequestContext } from "./memories.js";
+
+export { Groups } from "./groups.js";
 
 export { Jobs } from "./jobs.js";
 export type { PollOptions } from "./jobs.js";
@@ -28,6 +30,11 @@ export type {
   FactDetails,
   FactMemory,
   Filter,
+  Group,
+  GroupCreateRequest,
+  GroupListEnvelope,
+  GroupStatus,
+  GroupUpdateRequest,
   IngestJob,
   IngestJobResult,
   IngestRequest,
@@ -39,8 +46,11 @@ export type {
   MemoryStatus,
   MemoryType,
   Message,
+  RecallParams,
+  RecallResult,
+  RecallScopeStat,
   Role,
   SearchListEnvelope,
+  SearchMode,
   SearchRequest,
-  UpdateRequest,
 } from "./types.js";

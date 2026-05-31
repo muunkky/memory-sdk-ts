@@ -6,10 +6,23 @@ import type {
   ListEnvelope,
   ListQuery,
   Memory,
+  RecallParams,
+  RecallResult,
+  RecallScopeStat,
   SearchListEnvelope,
   SearchRequest,
-  UpdateRequest,
 } from "./types.js";
+
+/**
+ * Render a list of memories into a single, ready-to-inject context block.
+ * Deterministic (no LLM, no wasted tokens). Pass your own renderer to
+ * `recall(..., { render })` if you want a different shape.
+ */
+export function renderMemoriesPrompt(memories: Memory[]): string {
+  if (memories.length === 0) return "";
+  const lines = memories.map((m) => `- ${m.text}`);
+  return `Relevant memories about the user:\n${lines.join("\n")}`;
+}
 
 export interface IngestOptions {
   /**
@@ -64,17 +77,12 @@ export class Memories {
     return body;
   }
 
-  /** Update a memory's text and/or metadata. Metadata is merged, not replaced. */
-  async update(id: string, patch: UpdateRequest, context: RequestContext = {}): Promise<Memory> {
-    const { body } = await this.http.request<Memory>("PATCH", `/v1/memories/${encodeURIComponent(id)}`, {
-      body: patch,
-      signal: context.signal,
-      requestId: context.requestId,
-    });
-    return body;
-  }
-
-  /** Soft-delete a memory. */
+  /**
+   * Hard-delete a memory by id. The point is removed outright (no tombstone):
+   * afterwards `get` returns 404, it's gone from list/search, and a second
+   * delete returns 404 (idempotent by absence). Corrections flow through
+   * ingest, not a PATCH — the memory API has no update endpoint.
+   */
   async delete(id: string, context: RequestContext = {}): Promise<void> {
     await this.http.request<void>("DELETE", `/v1/memories/${encodeURIComponent(id)}`, {
       signal: context.signal,
@@ -92,10 +100,91 @@ export class Memories {
     return response;
   }
 
-  /** Sugar over search: returns the assembled `context_prompt` for LLM use. */
+  /**
+   * Sugar over {@link search} that forces `mode: "compose"` — the response's
+   * `context` carries xmem's LLM-assembled, ready-to-inject prompt (and `data`
+   * the agent-filtered rows). For a personal + shared (group) read in one call,
+   * use {@link recall} instead.
+   */
   async retrieve(body: SearchRequest, context: RequestContext = {}): Promise<SearchListEnvelope> {
-    const include = Array.from(new Set([...(body.include ?? []), "context_prompt"] as const));
-    return this.search({ ...body, include: include as SearchRequest["include"] }, context);
+    return this.search({ ...body, mode: "compose" }, context);
+  }
+
+  /**
+   * Personal **+** shared (group) read in a single call.
+   *
+   * Search scoping is AND-everything ("scope by what you pass"), so a
+   * combined "my own preferences AND the shared trip's facts" read can't be
+   * expressed as one request — `{ user_id, group_ids }` would intersect, not
+   * union. `recall` rebuilds that union client-side: it fans out one search
+   * per scope you supply — `{ user_id }` for the caller's own memories and
+   * `{ group_ids }` for the shared group(s) — in parallel, dedupes the rows
+   * by id, re-ranks by score, and renders **one** ready-to-inject prompt.
+   *
+   * With the default `mode: "compose"`, each sub-search returns its
+   * *agent-filtered* rows (the LLM context-selection pass runs per scope), so
+   * the merged set is "the relevant personal facts + the relevant shared
+   * facts" — deduped, and without the duplicated framing (or double prompt
+   * cost) you'd get from concatenating two assembled `context` strings.
+   *
+   * At least one of `user_id` / `group_ids` must be supplied.
+   *
+   * @example
+   * const { prompt, memories } = await client.memories.recall({
+   *   query: "what should I plan for dinner on the trip?",
+   *   user_id: "alice",            // her dietary prefs
+   *   group_ids: ["grp_tokyo2026"] // the group's shared restaurant picks
+   * });
+   * // inject `prompt` into your agent's context
+   */
+  async recall(
+    params: RecallParams,
+    options: { render?: (memories: Memory[]) => string } & RequestContext = {},
+  ): Promise<RecallResult> {
+    const { query, user_id, group_ids, agent_id, app_id } = params;
+    const mode = params.mode ?? "compose";
+    const limit = params.limit ?? 10;
+    const hasGroups = Array.isArray(group_ids) && group_ids.length > 0;
+    if (!user_id && !hasGroups) {
+      throw new Error("recall(): provide at least one of `user_id` or `group_ids`");
+    }
+
+    const base = { query, agent_id, app_id, mode, limit };
+    const ctx: RequestContext = { signal: options.signal, requestId: options.requestId };
+
+    const jobs: Array<{ scope: RecallScopeStat["scope"]; promise: Promise<SearchListEnvelope> }> = [];
+    if (user_id) {
+      jobs.push({ scope: "personal", promise: this.search({ ...base, user_id }, ctx) });
+    }
+    if (hasGroups) {
+      jobs.push({ scope: "shared", promise: this.search({ ...base, group_ids }, ctx) });
+    }
+
+    const envelopes = await Promise.all(
+      jobs.map(async (j) => ({ scope: j.scope, env: await j.promise })),
+    );
+
+    // Dedupe across scopes by id; when a memory matches more than one scope,
+    // keep the higher-scored copy so the merged ranking stays meaningful.
+    const byId = new Map<string, Memory>();
+    const scopes: RecallScopeStat[] = [];
+    for (const { scope, env } of envelopes) {
+      const rows = env.data ?? [];
+      scopes.push({ scope, count: rows.length });
+      for (const m of rows) {
+        const existing = byId.get(m.id);
+        if (!existing || (m.score ?? -Infinity) > (existing.score ?? -Infinity)) {
+          byId.set(m.id, m);
+        }
+      }
+    }
+
+    const memories = Array.from(byId.values())
+      .sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity))
+      .slice(0, limit);
+
+    const render = options.render ?? renderMemoriesPrompt;
+    return { memories, prompt: render(memories), scopes };
   }
 
   /**

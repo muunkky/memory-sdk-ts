@@ -92,8 +92,7 @@ export function memoryTools(
         ? (
             await client.memories.recall({
               query,
-              user_id: scope.user_id,
-              group_ids: groupIds,
+              pools: [{ user_id: scope.user_id }, { group_ids: groupIds }],
               limit: effectiveLimit,
             })
           ).memories

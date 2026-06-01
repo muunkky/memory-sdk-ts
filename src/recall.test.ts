@@ -70,8 +70,7 @@ describe("Memories.recall", () => {
     });
     const res = await new Memories(http).recall({
       query: "q",
-      user_id: "alice",
-      group_ids: ["grp_x"],
+      pools: [{ user_id: "alice" }, { group_ids: ["grp_x"] }],
     });
 
     // one personal call + one shared call, both default mode=compose
@@ -111,8 +110,7 @@ describe("Memories.recall", () => {
     });
     const res = await new Memories(http).recall({
       query: "q",
-      user_id: "alice",
-      group_ids: ["grp_tokyo"],
+      pools: [{ user_id: "alice" }, { group_ids: ["grp_tokyo"] }],
     });
     expect(res.prompt).toContain("Personal:");
     expect(res.prompt).toContain("Tokyo trip 2026:");
@@ -121,14 +119,14 @@ describe("Memories.recall", () => {
     expect(res.prompt).not.toContain("grp_tokyo");
   });
 
-  it("throws when neither user_id nor group_ids is supplied", async () => {
+  it("throws when pools is empty", async () => {
     const { http } = fakeHttp({});
-    await expect(new Memories(http).recall({ query: "q" })).rejects.toThrow(/at least one/);
+    await expect(new Memories(http).recall({ query: "q", pools: [] })).rejects.toThrow(/pools/);
   });
 
-  it("only searches the personal scope when no group_ids", async () => {
+  it("a single pool runs just one search", async () => {
     const { http, calls } = fakeHttp({ onSearch: () => [mem("A", "a", 0.5)] });
-    await new Memories(http).recall({ query: "q", user_id: "alice" });
+    await new Memories(http).recall({ query: "q", pools: [{ user_id: "alice" }] });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.user_id).toBe("alice");
   });
@@ -138,7 +136,7 @@ describe("Memories.recall", () => {
       onSearch: (body) =>
         body.user_id ? [mem("A", "a", 0.9), mem("B", "b", 0.8), mem("C", "c", 0.7)] : [],
     });
-    const res = await new Memories(http).recall({ query: "q", user_id: "alice", limit: 2 });
+    const res = await new Memories(http).recall({ query: "q", pools: [{ user_id: "alice" }], limit: 2 });
     expect(res.memories.map((m) => m.id)).toEqual(["A", "B"]);
   });
 
@@ -151,8 +149,7 @@ describe("Memories.recall", () => {
     });
     const res = await new Memories(http).recall({
       query: "q",
-      user_id: "alice",
-      group_ids: ["grp_x"],
+      pools: [{ user_id: "alice" }, { group_ids: ["grp_x"] }],
       limit: 2,
     });
     const ids = res.memories.map((m) => m.id);
@@ -170,8 +167,7 @@ describe("Memories.recall", () => {
     });
     const res = await new Memories(http).recall({
       query: "q",
-      user_id: "alice",
-      group_ids: ["grp_x"],
+      pools: [{ user_id: "alice" }, { group_ids: ["grp_x"] }],
       limit: 1,
     });
     expect(res.memories.map((m) => m.id)).toEqual(["S"]); // higher-scoring shared wins the lone slot
@@ -190,8 +186,7 @@ describe("Memories.recall", () => {
     });
     const res = await new Memories(http).recall({
       query: "q",
-      user_id: "alice",
-      group_ids: ["grp_a"],
+      pools: [{ user_id: "alice" }, { group_ids: ["grp_a"] }],
       limit: 10,
     });
     const ids = res.memories.map((m) => m.id);
@@ -203,7 +198,7 @@ describe("Memories.recall", () => {
   it("passes agent_id/app_id/mode through and honors a custom renderer", async () => {
     const { http, calls } = fakeHttp({ onSearch: () => [mem("A", "a", 0.5)] });
     const res = await new Memories(http).recall(
-      { query: "q", user_id: "alice", agent_id: "bot", app_id: "app1", mode: "retrieve" },
+      { query: "q", pools: [{ user_id: "alice", agent_id: "bot", app_id: "app1" }], mode: "retrieve" },
       { render: (ms) => ms.map((m) => m.text).join("|") },
     );
     expect(calls[0]!.agent_id).toBe("bot");
@@ -388,16 +383,5 @@ describe("Memories.recall — pools (general union)", () => {
     expect(ids).toContain("G"); // group pool's row kept
     expect(ids).not.toContain("UB"); // alice's paris row dropped — no cross-group bleed
     expect(res.prompt).toContain("Tokyo trip:");
-  });
-
-  it("legacy { user_id, group_ids } still expands to pools", async () => {
-    const { http, calls } = fakeHttp({
-      onSearch: (body) =>
-        body.user_id && !body.group_ids ? [mem("P", "p", 0.6)] : [mem("S", "s", 0.7, { group_ids: ["grp_x"] })],
-    });
-    const res = await new Memories(http).recall({ query: "q", user_id: "alice", group_ids: ["grp_x"] });
-    expect(calls).toHaveLength(2);
-    expect(res.scopes.map((s) => s.scope)).toEqual(["personal", "shared"]);
-    expect(res.memories.map((m) => m.id).sort()).toEqual(["P", "S"]);
   });
 });

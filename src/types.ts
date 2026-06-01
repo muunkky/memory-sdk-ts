@@ -222,25 +222,25 @@ export interface ScopePool {
 export interface RecallParams {
   /** Natural-language query, embedded server-side. */
   query: string;
-  /** Convenience: personal scope. Pulls the caller's own memories. */
-  user_id?: string;
-  /** Convenience: shared scope. Pulls group-tagged memories (any-of). */
-  group_ids?: string[];
-  /** Convenience: agent scope — AND-narrows the convenience pools below. */
-  agent_id?: string;
-  /** Convenience: app scope — AND-narrows the convenience pools below. */
-  app_id?: string;
   /**
-   * Explicit pools to union — the general form. Each pool is a scoped search
-   * (its axes AND together); recall unions the pools. Use it to blend *any*
-   * scopes, e.g. personal + a global `app_id` knowledge base:
-   * `pools: [{ user_id: "alice" }, { app_id: "product-kb" }]`.
+   * The scope pools to union. Each pool is one scoped search — its axes AND
+   * together — and recall unions the pools, dedupes, score-ranks, and renders
+   * one prompt. At least one pool (each with ≥1 axis) is required.
    *
-   * When omitted, recall derives pools from the convenience fields:
-   * `{ user_id, agent_id, app_id }` (when `user_id` is set) and/or
-   * `{ group_ids, agent_id, app_id }` (when `group_ids` is set).
+   * The only OR in the API: axes within a pool AND; pools OR. So put each scope
+   * you want OR'd in its own pool.
+   *
+   * @example
+   * // personal + a group ("my stuff OR the trip's stuff"):
+   * pools: [{ user_id: "alice" }, { group_ids: ["grp_tokyo"] }]
+   * @example
+   * // personal + a global app_id knowledge base:
+   * pools: [{ user_id: "alice" }, { app_id: "product-kb" }]
+   * @example
+   * // AND inside a pool, OR across: (alice AND planner) OR product-kb
+   * pools: [{ user_id: "alice", agent_id: "planner" }, { app_id: "product-kb" }]
    */
-  pools?: ScopePool[];
+  pools: ScopePool[];
   /**
    * Per-pool search mode. `"compose"` (default) returns each pool's
    * agent-filtered rows — recommended, since recall dedupes those into one

@@ -237,19 +237,18 @@ export class Memories {
    * can label shared facts by group name rather than opaque id. The lookup is
    * best-effort — on failure the render falls back to id-based labels.
    *
-   * Provide `pools` (the general form — any scopes to union), or the convenience
-   * fields `user_id` / `group_ids` (at least one), which recall expands into pools.
+   * Pass `pools` — the scopes to union. Axes within a pool AND; pools OR. At
+   * least one pool (each with ≥1 axis) is required.
    *
    * @example
-   * // Convenience form — personal + a group:
+   * // personal + a group ("my stuff OR the trip's stuff"):
    * const { prompt } = await client.memories.recall({
    *   query: "what should I plan for dinner on the trip?",
-   *   user_id: "alice",            // her dietary prefs
-   *   group_ids: ["grp_tokyo2026"] // the group's shared restaurant picks
+   *   pools: [{ user_id: "alice" }, { group_ids: ["grp_tokyo2026"] }],
    * });
    *
    * @example
-   * // General form — blend any scopes, e.g. personal + a global app_id KB:
+   * // personal + a global app_id knowledge base:
    * const { prompt } = await client.memories.recall({
    *   query: "how do I reset my key?",
    *   pools: [{ user_id: "alice" }, { app_id: "product-kb" }],
@@ -272,29 +271,17 @@ export class Memories {
       ) => string;
     } & RequestContext = {},
   ): Promise<RecallResult> {
-    const { query, agent_id, app_id } = params;
+    const { query } = params;
     const mode = params.mode ?? "compose";
     const limit = params.limit ?? 10;
 
-    // Resolve the pools to union: explicit `pools`, else derived from the
-    // convenience fields ({user_id,…} and/or {group_ids,…}). Each pool is one
-    // scoped search; recall unions them.
-    let pools: ScopePool[];
-    if (params.pools && params.pools.length > 0) {
-      pools = params.pools;
-    } else {
-      pools = [];
-      if (params.user_id) pools.push({ user_id: params.user_id, agent_id, app_id });
-      if (Array.isArray(params.group_ids) && params.group_ids.length > 0) {
-        pools.push({ group_ids: params.group_ids, agent_id, app_id });
-      }
-    }
-    // Every pool needs at least one scope axis (an unscoped search 422s).
-    pools = pools.filter(
+    // Each pool is one scoped search; recall unions them. Every pool needs at
+    // least one scope axis (an unscoped search 422s server-side).
+    const pools = (params.pools ?? []).filter(
       (p) => p.user_id || (p.group_ids && p.group_ids.length > 0) || p.agent_id || p.app_id,
     );
     if (pools.length === 0) {
-      throw new Error("recall(): provide `pools`, or at least one of `user_id` / `group_ids`");
+      throw new Error("recall(): `pools` must contain at least one pool with a scope axis");
     }
 
     const ctx: RequestContext = { signal: options.signal, requestId: options.requestId };
@@ -303,7 +290,7 @@ export class Memories {
     // non-group pools from bleeding in the user's other groups.
     const requestedGroupIds = [...new Set(pools.flatMap((p) => p.group_ids ?? []))];
     const requestedSet = requestedGroupIds.length > 0 ? new Set(requestedGroupIds) : null;
-    const viewerUserId = params.user_id ?? pools.find((p) => p.user_id)?.user_id;
+    const viewerUserId = pools.find((p) => p.user_id)?.user_id;
     const poolLabel = (p: ScopePool): string =>
       p.group_ids && p.group_ids.length > 0 ? "shared" : p.user_id ? "personal" : "scope";
 

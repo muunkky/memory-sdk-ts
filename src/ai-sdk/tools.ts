@@ -62,8 +62,9 @@ export function memoryTools(
 ) {
   const searchLimit = options.searchLimit ?? 5;
   const includeSave = options.includeSave ?? true;
-  // Normalize the group scope once so the search and save tools agree on it
-  // (a bare string or empty array → "no groups", matching recall's own guard).
+  // Normalize the group scope once so the search and save tools agree on it: a
+  // bare string or empty array → "no groups". recall() now rejects a zero-axis
+  // pool, so this also guarantees we never hand it a `{ group_ids: [] }`.
   const groupIds =
     Array.isArray(scope.group_ids) && scope.group_ids.length > 0 ? scope.group_ids : undefined;
 

@@ -313,14 +313,26 @@ export class Memories {
     const mode = params.mode ?? "compose";
     const limit = params.limit ?? 10;
 
-    // Each pool is one scoped search; recall unions them. Every pool needs at
-    // least one scope axis (an unscoped search 422s server-side).
-    const pools = (params.pools ?? []).filter(
-      (p) => p.user_id || (p.group_ids && p.group_ids.length > 0) || p.agent_id || p.app_id,
-    );
+    // Each pool is one scoped search; recall unions them. Every pool must carry
+    // at least one scope axis (an unscoped search 422s server-side). Reject a
+    // malformed pool LOUDLY rather than silently dropping it: quietly skipping a
+    // pool (a typo'd `group_id`, an empty `group_ids: []`) would return a
+    // plausible-but-incomplete result with the requested scope silently missing.
+    // A caller that wants a pool conditionally should omit it explicitly.
+    const pools = params.pools ?? [];
     if (pools.length === 0) {
-      throw new Error("recall(): `pools` must contain at least one pool with a scope axis");
+      throw new Error("recall(): `pools` must contain at least one pool");
     }
+    pools.forEach((p, i) => {
+      const hasAxis =
+        p.user_id || (p.group_ids && p.group_ids.length > 0) || p.agent_id || p.app_id;
+      if (!hasAxis) {
+        throw new Error(
+          `recall(): pool at index ${i} has no scope axis — give each pool at ` +
+            `least one of user_id, group_ids, agent_id, or app_id`,
+        );
+      }
+    });
 
     const ctx: RequestContext = { signal: options.signal, requestId: options.requestId };
 

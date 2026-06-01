@@ -362,6 +362,16 @@ describe("Memories.recall — pools (general union)", () => {
     expect(res.prompt.indexOf("dark mode")).toBeLessThan(res.prompt.indexOf("product-kb:"));
   });
 
+  it("rejects a malformed pool alongside a valid one (no silent drop)", async () => {
+    const { http, calls } = fakeHttp({ onSearch: () => [] });
+    // An empty group array carries no scope — dropping it would silently return
+    // results missing the requested group. Must throw, naming the bad index.
+    await expect(
+      new Memories(http).recall({ query: "q", pools: [{ user_id: "alice" }, { group_ids: [] }] }),
+    ).rejects.toThrow(/index 1|scope axis|at least one/);
+    expect(calls).toHaveLength(0); // threw before issuing any search
+  });
+
   it("throws when no pool carries a scope axis", async () => {
     const { http } = fakeHttp({});
     await expect(new Memories(http).recall({ query: "q", pools: [{}] })).rejects.toThrow(

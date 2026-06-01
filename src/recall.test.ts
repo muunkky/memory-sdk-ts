@@ -404,6 +404,15 @@ describe("Memories.recall — pools (general union)", () => {
     expect(res.memories.map((m) => m.id)).toEqual(["P"]);
   });
 
+  it("rejects a non-array group_ids (JS caller passing a bare string)", async () => {
+    const { http, calls } = fakeHttp({});
+    await expect(
+      // @ts-expect-error — group_ids is string[]; a JS caller could pass a string
+      new Memories(http).recall({ query: "q", pools: [{ group_ids: "grp_x" }] }),
+    ).rejects.toThrow(/non-array group_ids|array of group/);
+    expect(calls).toHaveLength(0); // threw before issuing any search
+  });
+
   it("throws when no pool carries a scope axis", async () => {
     const { http } = fakeHttp({});
     await expect(new Memories(http).recall({ query: "q", pools: [{}] })).rejects.toThrow(

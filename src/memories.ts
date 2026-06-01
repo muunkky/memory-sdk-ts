@@ -330,6 +330,16 @@ export class Memories {
       throw new Error("recall(): `pools` must contain at least one pool");
     }
     const pools: ScopePool[] = rawPools.map((p, i) => {
+      // Guard JS callers (no compiler): a bare string group_ids has `.length`, so
+      // without this it would masquerade as a non-empty axis and forward an
+      // invalid (non-array) scope to the server. Reject it explicitly.
+      const gids = p.group_ids as unknown;
+      if (gids != null && !Array.isArray(gids)) {
+        throw new Error(
+          `recall(): pool at index ${i} has a non-array group_ids — it must be ` +
+            `an array of group id strings`,
+        );
+      }
       const np: ScopePool = {};
       if (p.user_id) np.user_id = p.user_id;
       if (p.group_ids && p.group_ids.length > 0) np.group_ids = p.group_ids;

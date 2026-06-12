@@ -7,3 +7,23 @@ dist
 coverage
 .vitest-cache
 .npm-cache
+
+# === gitban overlay ===========================================================
+# Strategy: this is a FORK of XTraceAI/memory-sdk-ts used as our gitban
+# workspace. We TRACK the durable PM/dispatch surface (.gitban cards, roadmap,
+# hooks, agent inboxes + .claude agents/skills/settings) so that parallel
+# subagent worktrees — which are checkouts of HEAD and therefore only receive
+# *tracked* files — come up with the harness intact. A blanket `.gitban/**`
+# ignore would leave every worktree missing its hooks/cards and thrash dispatch.
+# Only the regenerable, machine-local runtime artifacts below are ignored.
+# (See .claude/CLAUDE.md → "Contributing & gitban overlay" for the full why.)
+.claude/worktrees/
+.gitban/agents/.active-log
+.gitban/agents/*/logs/*.jsonl
+.gitban/agents/*/logs/*.jsonl.*
+.gitban/agents/traces/
+.gitban/audit/
+.gitban/.viewer-port
+.gitban/views/
+.gitignore.gitban
+/log/

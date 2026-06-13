@@ -199,21 +199,34 @@ try {
 ### Rate limits
 
 When the server sends `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset`
-headers, the parsed `RateLimitSnapshot` is available on both a successful response
-and any thrown error, so you can back off proactively before you hit a `429`:
+headers, the SDK parses them into a `RateLimitSnapshot`. On any thrown error,
+read it from `err.rateLimit` so you can back off proactively:
 
 ```ts
-const { rateLimit } = await client.http.request("GET", "/v1/memories");
-if (rateLimit?.remaining === 0) {
-  // wait rateLimit.reset seconds before the next call
+import { RateLimited } from "@xtraceai/memory";
+
+try {
+  await client.memories.search({ query: "recent context" });
+} catch (err) {
+  if (err instanceof RateLimited && err.rateLimit?.remaining === 0) {
+    // wait err.rateLimit.reset seconds before the next call
+    // (err.retryAfter carries the server's Retry-After for a 429)
+  }
 }
 ```
 
-On a thrown error, read the same snapshot from `err.rateLimit` (e.g.
-`err.rateLimit?.reset` on a `RateLimited`). Absent headers leave every field
-`undefined`. Note: rate-limit state is exposed per-response — there is no
-client-level "last seen" global, because the SDK fans out concurrent requests
-and a shared snapshot would be racy.
+Absent headers leave every `RateLimitSnapshot` field `undefined`. Rate-limit
+state is exposed per-response — there is no client-level "last seen" global,
+because the SDK fans out concurrent requests and a shared snapshot would be
+racy.
+
+Note (v0.3.0): the snapshot is parsed for **every** response, but on the
+**success** path it is currently only available on the internal
+`HttpClient.request()` return — the public methods (`memories.*`, `groups.*`)
+return just the parsed body, so there is no public success-path read yet. A
+public success-path rate-limit surface is deferred until there is demand for
+it; today, `err.rateLimit` on a thrown error is the supported way to observe
+the bucket state.
 
 ## Documentation
 

@@ -47,8 +47,9 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "gen:types": "openapi-typescript spec/memory.json -o src/generated/types.ts",
+    "check:types-sync": "npm run gen:types && git diff --exit-code -- src/generated/types.ts",
     "smoke": "tsx examples/smoke.ts",
-    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+    "prepublishOnly": "npm run typecheck && npm run test && npm run check:types-sync && npm run build"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",

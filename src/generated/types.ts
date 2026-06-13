@@ -139,8 +139,20 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update a memory's text and/or metadata
-         * @description Update text and/or metadata.
+         * [REMOVED server-side — returns 405] Update a memory's text and/or metadata
+         * @deprecated
+         * @description **REMOVED SERVER-SIDE — this endpoint returns `405 Method Not Allowed`.**
+         *
+         *     Per ADR-001 (disposition A4) and commit `a7da7a9` (PR #6), `PATCH
+         *     /v1/memories/{memory_id}` was removed from the deployed API. The
+         *     `@xtraceai/memory` SDK dropped its `memories.update()` method for the
+         *     same reason ("the old calls already 4xx against the live API").
+         *     **Corrections flow through ingest** (`POST /v1/memories`): re-ingest the
+         *     corrected content rather than patching in place. This operation and the
+         *     `UpdateRequest` schema are retained here, annotated, for historical /
+         *     diff legibility — do **not** re-implement a client against them.
+         *
+         *     The original (now-defunct) contract was:
          *
          *     - ``text`` change → supersede (create a new ACTIVE fact pointing
          *       back at the old one via ``supersedes``); fact-only operation.
@@ -150,7 +162,7 @@ export interface paths {
          *       metadata. The old revision keeps its original metadata.
          *
          *     Trying to set an entity id / ``type`` / ``created_at`` via
-         *     ``metadata`` surfaces ``422 immutable_field``.
+         *     ``metadata`` surfaced ``422 immutable_field``.
          */
         patch: operations["patch_memory_v1_memories__memory_id__patch"];
         trace?: never;
@@ -667,11 +679,18 @@ export interface components {
         };
         /**
          * UpdateRequest
-         * @description PATCH /v1/memories/{id} — update text and/or metadata.
+         * @deprecated
+         * @description **REMOVED SERVER-SIDE.** Body schema for `PATCH /v1/memories/{id}`,
+         *     which now returns `405 Method Not Allowed`. Removed from the deployed
+         *     API per commit `a7da7a9` (PR #6) and dropped from the SDK
+         *     (`memories.update()` + this type) per ADR-001 (A4). Corrections flow
+         *     through ingest (`POST /v1/memories`). Retained, annotated, for
+         *     historical / diff legibility only — do not build against it.
          *
-         *     Metadata is merged onto the existing payload, not replaced.
-         *     Immutable fields (``type``, entity ids, ``created_at``) cannot be
-         *     changed via this endpoint; attempting to set them surfaces
+         *     The original (now-defunct) contract: update text and/or metadata.
+         *     Metadata was merged onto the existing payload, not replaced.
+         *     Immutable fields (``type``, entity ids, ``created_at``) could not be
+         *     changed via this endpoint; attempting to set them surfaced
          *     ``422 immutable_field``.
          */
         UpdateRequest: {

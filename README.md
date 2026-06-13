@@ -332,6 +332,29 @@ the bucket state.
 
 Full documentation at [docs.xtrace.ai](https://docs.xtrace.ai).
 
+### Type surface & generated reference (maintainers)
+
+The hand-authored `src/types.ts` is the canonical public type surface
+(see `docs/adr/ADR-002`). `src/generated/types.ts` is a spec-derived
+**reference** — produced by `npm run gen:types`
+(`openapi-typescript spec/memory.json`) and imported by nothing in `src/`.
+Do not hand-edit the generated file; regenerate it from the spec instead.
+
+`npm run check:types-sync` (`gen:types` + `git diff --exit-code` on the
+generated file) proves the committed reference is exactly what the current
+`spec/memory.json` produces, catching reference drift. It is chained into
+`prepublishOnly`, so a publish fails if the generated reference is stale.
+After any `spec/memory.json` change, run `npm run gen:types` and commit the
+regenerated reference.
+
+**openapi-typescript version pin:** the reference is generated with
+**openapi-typescript `^7.4.0`** (the version installed at generation time was
+`7.13.0`). The generator's output format can shift between minor versions, so a
+bump can make `check:types-sync` fail even with no spec change. If that happens,
+it is not spec drift — run `npm run gen:types`, review the diff, and commit the
+regenerated reference. Keep the devDependency pin tight to avoid spurious
+failures.
+
 # License
 
 MIT — see [LICENSE](LICENSE).

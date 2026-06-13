@@ -1,5 +1,8 @@
-// Hand-written types matching openapi/memory_v2.json.
-// Regenerate the canonical version with `npm run gen:types` once the spec is final.
+// Hand-authored domain types — the canonical public surface (ADR-002).
+// The spec-derived reference lives at src/generated/types.ts; regenerate it
+// with `npm run gen:types` (source: spec/memory.json) and keep it in sync via
+// `npm run check:types-sync`. The generated file is a reference, not the
+// public surface — these hand-authored types are.
 
 export type MemoryType = "fact" | "artifact" | "episode";
 

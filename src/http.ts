@@ -1,5 +1,5 @@
-import { errorForStatus, MemoryError, RateLimited, ServerError } from "./errors.js";
-import type { ApiErrorBody } from "./types.js";
+import { errorForStatus, MemoryError, parseErrorBody, RateLimited, ServerError } from "./errors.js";
+import type { RateLimitSnapshot } from "./errors.js";
 
 export interface HttpClientConfig {
   apiKey: string;
@@ -30,7 +30,7 @@ function makeRequestId(): string {
 export class HttpClient {
   constructor(private readonly config: HttpClientConfig) {}
 
-  async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<{ body: T; status: number; requestId: string | undefined }> {
+  async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<{ body: T; status: number; requestId: string | undefined; rateLimit: RateLimitSnapshot | undefined }> {
     const url = new URL(path, this.config.baseUrl);
     if (options.query) {
       for (const [k, v] of Object.entries(options.query)) {
@@ -75,19 +75,20 @@ export class HttpClient {
       }
 
       const respRequestId = response.headers.get("x-request-id") ?? requestId;
+      const rateLimit = parseRateLimit(response.headers);
 
       if (response.status === 204) {
-        return { body: undefined as T, status: response.status, requestId: respRequestId };
+        return { body: undefined as T, status: response.status, requestId: respRequestId, rateLimit };
       }
 
       const text = await response.text();
       const parsed: unknown = text ? safeJson(text) : null;
 
       if (response.ok) {
-        return { body: parsed as T, status: response.status, requestId: respRequestId };
+        return { body: parsed as T, status: response.status, requestId: respRequestId, rateLimit };
       }
 
-      const err = toError(response, parsed, respRequestId);
+      const err = toError(response, parsed, respRequestId, rateLimit);
       const retryable = err instanceof RateLimited || (err instanceof ServerError && idempotent);
       if (retryable && attempt < this.config.maxRetries && !options.signal?.aborted) {
         attempt++;
@@ -114,16 +115,45 @@ function safeJson(text: string): unknown {
   }
 }
 
-function toError(response: Response, parsed: unknown, requestId: string | undefined): MemoryError {
-  const body = (parsed as ApiErrorBody | null)?.error;
+function toError(
+  response: Response,
+  parsed: unknown,
+  requestId: string | undefined,
+  rateLimit: RateLimitSnapshot | undefined,
+): MemoryError {
+  const body = parseErrorBody(parsed);
   const retryAfterHeader = response.headers.get("retry-after");
   const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : undefined;
   return errorForStatus(
     response.status,
-    body ?? null,
+    body,
     requestId,
     Number.isFinite(retryAfter) ? retryAfter : undefined,
+    rateLimit,
   );
+}
+
+/**
+ * Parse the `RateLimit-Limit/Remaining/Reset` response headers into a
+ * {@link RateLimitSnapshot}. Each field is included only when its header is
+ * present and numerically finite; if no field survives, returns `undefined`
+ * (an absent bucket, never an empty object). Never throws.
+ */
+function parseRateLimit(headers: Headers): RateLimitSnapshot | undefined {
+  const num = (name: string): number | undefined => {
+    const raw = headers.get(name);
+    if (raw === null) return undefined;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const snapshot: RateLimitSnapshot = {};
+  const limit = num("RateLimit-Limit");
+  const remaining = num("RateLimit-Remaining");
+  const reset = num("RateLimit-Reset");
+  if (limit !== undefined) snapshot.limit = limit;
+  if (remaining !== undefined) snapshot.remaining = remaining;
+  if (reset !== undefined) snapshot.reset = reset;
+  return Object.keys(snapshot).length > 0 ? snapshot : undefined;
 }
 
 export function defaultHttpConfig(input: {

@@ -199,9 +199,17 @@ export interface SearchRequest {
   cursor?: string | null;
   include?: Array<"context_prompt" | "full_content">;
   /**
-   * @deprecated Legacy pre-#68 wire shape. The server still lifts
-   * `user_id` / `agent_id` / `app_id` out of here, but new code should use
-   * the top-level fields above.
+   * Filter DSL over indexed payload keys — operators (`$eq`/`$in`/`$gt`/…),
+   * `null` for "unset", and `AND`/`OR`/`NOT` composition; top-level keys are
+   * implicit-AND'd. Build it with the typed `f` builder (`src/filter.ts`) or
+   * pass a raw {@link Filter} object. This operator-DSL use is **supported and
+   * not deprecated**.
+   *
+   * @deprecated *only* for lifting the scope axes
+   * (`user_id` / `agent_id` / `app_id`) out of here — that legacy pre-#68 form
+   * still works (the server lifts them) but new code should set those as the
+   * top-level fields above. Filtering on non-scope payload keys via the
+   * operator DSL is the supported, non-deprecated use of this field.
    */
   filters?: Filter;
 }

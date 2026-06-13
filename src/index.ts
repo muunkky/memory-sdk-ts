@@ -9,6 +9,9 @@ export { Groups } from "./groups.js";
 export { Jobs } from "./jobs.js";
 export type { PollOptions } from "./jobs.js";
 
+export { f } from "./filter.js";
+export type { Clause, Comparable, FieldOps } from "./filter.js";
+
 export {
   MemoryError,
   BadRequest,

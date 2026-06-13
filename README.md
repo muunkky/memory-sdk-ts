@@ -112,6 +112,65 @@ const memory = await client.memories.get(results.data[0]!.id);
 await client.memories.delete(memory.id);
 ```
 
+## Filtering
+
+Scope axes (`user_id` / `agent_id` / `app_id` / `group_ids`) are top-level
+fields on `search`. For anything richer — ranges, set membership, negation,
+existence, or filtering on your own indexed payload keys — pass a filter to
+`search({ filters })`. Use the typed `f` builder instead of hand-writing the
+wire JSON: it's discoverable, and it makes a silently-wrong query impossible.
+
+```ts
+import { f } from "@xtraceai/memory";
+
+// (agent_id == "bot") AND (0.5 <= score < 0.9) AND (plan in ["a", "b"])
+const results = await client.memories.search({
+  query: "recent activity",
+  filters: f.all(
+    f.eq("agent_id", "bot"),
+    f.field("score", { $gte: 0.5, $lt: 0.9 }), // a range keeps BOTH operators
+    f.in("plan", ["a", "b"]),
+  ),
+});
+```
+
+`f.field(name, ops)` is the only way to put multiple operators on one field, so
+a two-sided range can't silently collapse to one bound. `f.all(...)` merges
+clauses on **distinct** fields and **throws** on a duplicate field — combine a
+field's operators in a single `f.field` call, or `f.and(...)` to AND two
+conditions on the same field explicitly.
+
+```ts
+// single-operator shorthands
+f.eq("status", "active");          // { status: { $eq: "active" } }
+f.ne("status", "archived");        // { status: { $ne: "archived" } }
+f.in("plan", ["pro", "team"]);     // { plan: { $in: ["pro", "team"] } }
+f.nin("plan", ["free"]);           // { plan: { $nin: ["free"] } }
+f.exists("conv_id");               // { conv_id: { $exists: true } }
+f.exists("conv_id", false);        // { conv_id: { $exists: false } }
+f.between("score", 0.5, 0.9);      // { score: { $between: [0.5, 0.9] } }
+f.isNull("agent_id");              // { agent_id: null }  ← null = unset
+
+// boolean composition
+f.and(f.eq("a", 1), f.eq("b", 2)); // { AND: [...] }
+f.or(f.eq("a", 1), f.eq("b", 2));  // { OR:  [...] }
+f.not(f.eq("a", 1));               // { NOT: { a: { $eq: 1 } } }
+```
+
+The builder is **key-agnostic** — it filters any indexed payload key, including
+your own metadata keys, exactly the way it filters an entity axis:
+
+```ts
+// `tier` is a customer metadata key; it filters identically to a built-in axis.
+filters: f.all(f.eq("agent_id", "bot"), f.eq("tier", "gold"));
+```
+
+The builder's output is a plain object assignable to `SearchRequest.filters`, so
+the raw `Filter` (`Record<string, unknown>`) escape hatch still works if you'd
+rather hand-write the JSON. (Lifting scope axes such as `user_id` *out of*
+`filters` is deprecated — set those as top-level fields — but the operator DSL
+over payload keys is fully supported.)
+
 ## Vercel AI SDK integration
 
 A separate subpath, `@xtraceai/memory/ai-sdk`, ships two ways to use the SDK with the [Vercel AI SDK](https://ai-sdk.dev). Peer dependencies (`ai`, `zod`) are optional — they're only required if you import from this subpath.

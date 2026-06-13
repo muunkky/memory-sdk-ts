@@ -1,0 +1,1089 @@
+schema_version: 3.0.0
+document_version: 0.1.0
+last_updated: '2026-06-12'
+metadata:
+  maintained_by: Your Team
+  review_frequency: Monthly
+  related_docs:
+    - docs/README.md
+  tools:
+    roadmap_tracking: roadmap.yaml
+    task_tracking: gitban cards
+    Gitban_mcp: https://github.com/muunkky/gitban-mcp
+milestones:
+  m2:
+    id: m2
+    title: Memory SDK — Road to 1.0
+    description: 'FORWARD-LOOKING. Honestly-grounded stabilization candidates for
+      a 1.0, derived ONLY from confirmed spec_vs_sdk_gaps (SDK omits documented spec
+      capabilities, or diverges from the spec wire contract) plus the explicit pre-1.0
+      signal in RELEASING.md. Each node is a stub: status todo, basis in notes, and
+      EMPTY tdd_spec where no test or behavior exists yet (empty beats fabricated).
+      These are NOT committed work — they capture where the SDK and the OpenAPI spec/memory.json
+      have drifted, for a maintainer to triage before locking the 1.0 contract. No
+      gitban/.claude tooling work belongs here. Docs: spec/memory.json, RELEASING.md.'
+    status: todo
+    docs_ref: spec/memory.json
+    stories:
+      s5:
+        id: s5
+        title: The SDK and the documented API contract are reconciled for a
+          stable 1.0
+        description: "FORWARD-LOOKING OBJECTIVE (candidate): the SDK either faithfully
+          surfaces the spec/memory.json contract or the spec is updated to match the
+          SDK's actual target, so a 1.0 consumer can rely on auth, error codes, endpoints,
+          and the filter DSL behaving as documented. Note (from the api-contract slice):
+          the SDK appears to target a NEWER/divergent API than memory.json (it adds
+          /v1/groups, group_ids, mode, recall) while the spec lags it — so this reconciliation
+          runs in BOTH directions. Every feature below is a confirmed spec_vs_sdk_gap;
+          none is committed. Basis: api-contract and types spec_vs_sdk_gaps cross-checked
+          against src/ and spec/memory.json; pre-1.0 minor-bump policy in RELEASING.md.
+          No work has started."
+        status: todo
+        success_criteria:
+          - 'Every confirmed SDK↔spec divergence (error-envelope shape, auth header
+            form, rate-limit headers, PATCH/update endpoint) is triaged to a recorded
+            decision: align the SDK, or correct spec/memory.json.'
+          - A 1.0 consumer can rely on auth, error codes, endpoints, and the
+            filter DSL behaving exactly as documented — the SDK surface and
+            spec/memory.json no longer contradict each other.
+          - Each m2 feature is either implemented or explicitly closed as
+            won't-do with a rationale, so no silent spec drift remains at the
+            1.0 cut.
+        projects:
+          spec-contract-alignment:
+            id: spec-contract-alignment
+            title: Spec ↔ SDK contract alignment
+            description: "Confirmed divergences between the SDK and spec/memory.json:
+              error wire shape, auth header form, missing PATCH/update endpoint, and
+              unsurfaced rate-limit headers. Each is a 1.0 decision point (align the
+              SDK, or update the spec to match the SDK's actual target API)."
+            docs_ref: docs/adr/ADR-001-sdk-spec-reconciliation-policy.md
+            status: todo
+            features:
+              error-envelope-mismatch:
+                id: error-envelope-mismatch
+                title: Resolve error-envelope wire-shape mismatch
+                description: "Candidate: the spec documents errors as {detail:{code,message}}
+                  (and 422 as {detail:[{loc,msg,type}]}), but src/http.ts:toError
+                  parses {error:{type,code,message}} (ApiErrorBody). Against the documented
+                  API, detail.code is never extracted, so MemoryError.code falls back
+                  to 'unknown_error' and typed subclasses can't switch on the spec's
+                  stable codes. Reconcile which shape the live API actually returns
+                  and align one side."
+                sequence: 1
+                status: todo
+                docs_ref: spec/memory.json
+                notes: "Basis: api-contract spec_vs_sdk_gap. src/http.ts:118 reads
+                  parsed.error; src/errors.ts:errorForStatus code default 'unknown_error';
+                  spec error envelope {detail:{code,message}} documented in spec/memory.json
+                  info.description (verified). No test/behavior to ground a spec yet
+                  — empty tdd_spec."
+              auth-header-form:
+                id: auth-header-form
+                title: Reconcile auth header form
+                description: "Candidate: spec securitySchemes accept only 'Authorization:
+                  Token <key>' or 'x-api-key: <key>' (always with X-Org-Id), but the
+                  SDK sends 'Authorization: Bearer <key>'. Neither spec-accepted scheme
+                  is used. Determine which scheme the live API honors and align the
+                  SDK or the spec for 1.0."
+                sequence: 2
+                status: todo
+                docs_ref: spec/memory.json
+                notes: "Basis: api-contract spec_vs_sdk_gap. src/http.ts:43-48 (Bearer);
+                  spec securitySchemes (verified spec/memory.json:1819-1830: x-api-key
+                  + Authorization: Token, bearerFormat 'Token'). The SDK's Bearer
+                  form may reflect the newer target API — direction unresolved. Empty
+                  tdd_spec."
+              rate-limit-headers:
+                id: rate-limit-headers
+                title: Surface RateLimit-Limit/Remaining/Reset response headers
+                description: "Candidate: the spec documents RateLimit-Limit/Remaining/Reset
+                  bucket-state headers on every response, but the SDK reads only Retry-After
+                  (429) and x-request-id — there's no way for a caller to proactively
+                  throttle. A 1.0 could parse and expose these."
+                sequence: 3
+                status: todo
+                docs_ref: spec/memory.json
+                notes: 'Basis: api-contract spec_vs_sdk_gap. src/http.ts reads only
+                  retry-after + x-request-id; spec RateLimit-* headers documented
+                  (verified spec/memory.json info.description + 429 descriptions).
+                  Empty tdd_spec — no behavior exists yet.'
+              update-endpoint:
+                id: update-endpoint
+                title: Implement PATCH /v1/memories/{id} update endpoint
+                description: "Candidate (single largest missing endpoint): the spec
+                  defines a full PATCH update — UpdateRequest{text?, metadata?}: a
+                  text change supersedes a fact, a metadata change merges in place,
+                  with codes immutable_field/reserved_field/empty_text_field/invalid_request.
+                  The SDK has no update/patch method and delete()'s docstring asserts
+                  (per spec, wrongly) the API has no update endpoint. Confirm the
+                  endpoint exists on the live API before building."
+                sequence: 4
+                status: todo
+                docs_ref: spec/memory.json
+                notes: 'Basis: api-contract spec_vs_sdk_gap (largest). Spec defines
+                  PATCH /v1/memories/{memory_id} with UpdateRequest (verified spec/memory.json:596-656);
+                  src/memories.ts has no update. NOTE: update() existed historically
+                  and was removed in a7da7a9 (PR #6) because the server returned 405
+                  — so the spec may simply be stale here. Resolve the contradiction
+                  before any work. Empty tdd_spec.'
+          search-capabilities:
+            id: search-capabilities
+            title: Spec search capabilities not yet surfaced
+            description: "Documented search-side spec capabilities the SDK doesn't
+              expose: a typed filter DSL, the include[] mechanism on search, and search-cursor
+              auto-iteration. Forward candidates for a richer 1.0 retrieval surface."
+            docs_ref: docs/designs/m2-1.0-spec-reconciliation-and-surface.md
+            status: todo
+            features:
+              typed-filter-dsl:
+                id: typed-filter-dsl
+                title: Typed filter DSL builder
+                description: "Candidate: the spec's full operator set ($eq/$ne/$in/$nin/$exists/$gt/$gte/$lt/$lte/$between,
+                  AND/OR/NOT, implicit-AND, null=unset, metadata-key filtering) lives
+                  behind SearchRequest.filters, but the SDK exposes only flat scope
+                  axes and keeps Filter = Record<string, unknown> as an @deprecated
+                  untyped escape hatch. A typed operator/builder API is a forward
+                  candidate."
+                sequence: 1
+                status: todo
+                docs_ref: spec/memory.json
+                notes: 'Basis: types + api-contract spec_vs_sdk_gaps. src/types.ts:Filter
+                  L160 (@deprecated path). Spec DSL operator table in spec/memory.json
+                  info.description (verified). Empty tdd_spec.'
+              search-include-mechanism:
+                id: search-include-mechanism
+                title: First-class include[] on search (full_content /
+                  context_prompt)
+                description: "Candidate: the spec's include:['full_content','context_prompt']
+                  mechanism on search and the resulting extras block are only partially
+                  wired — retrieve() uses a non-spec mode:'compose' field instead
+                  of include=['context_prompt'], and there's no first-class accessor
+                  for ArtifactDetails.full_content via search include (only the list
+                  include param is plumbed). RecallParams exposes no include[] at
+                  all."
+                sequence: 2
+                status: todo
+                docs_ref: spec/memory.json
+                notes: 'Basis: types + api-contract spec_vs_sdk_gaps. src/memories.ts
+                  retrieve uses mode; SearchListEnvelope.context/extras types.ts:153-156;
+                  full_content types.ts:46. Empty tdd_spec.'
+              search-auto-pager:
+                id: search-auto-pager
+                title: searchAll() cursor auto-iterator
+                description: 'Candidate: list has an async-generator auto-pager (memories.list),
+                  but search returns a SearchListEnvelope with cursor/next_cursor/has_more
+                  and there is no equivalent searchAll() generator — callers must
+                  hand-roll cursor threading. A 1.0 could add the symmetric auto-pager.'
+                sequence: 3
+                status: todo
+                docs_ref: spec/memory.json
+                notes: 'Basis: api-contract spec_vs_sdk_gap. src/memories.ts:list
+                  auto-pages (480-488) but search (240-247) does not. Empty tdd_spec.'
+          type-surface-finalization:
+            id: type-surface-finalization
+            title: Type-surface finalization toward 1.0
+            description: 'Forward type-surface work the source itself flags: wire
+              in the canonical generated types over the hand-authored interim, and
+              model declared-but-unwired fields (expanded, server-supplied prompt
+              templates, superseded-chain resolution).'
+            docs_ref: docs/adr/ADR-002-type-surface-source-of-truth.md
+            status: todo
+            features:
+              wire-generated-types:
+                id: wire-generated-types
+                title: Wire in canonical generated types
+                description: "Candidate: src/types.ts (L1-2) states the public types
+                  are hand-written to match openapi/memory_v2.json with a 'Regenerate
+                  the canonical version with npm run gen:types once the spec is final'
+                  TODO. The generated/canonical surface (src/generated/types.ts) is
+                  not yet wired in over the hand-authored interim — a 1.0 stabilization
+                  step once the spec is finalized."
+                sequence: 1
+                status: todo
+                docs_ref: spec/memory.json
+                notes: 'Basis: types spec_vs_sdk_gap. src/types.ts:1 header TODO references
+                  openapi/memory_v2.json — but that path does NOT exist; the gen:types
+                  script (package.json:49) targets spec/memory.json instead. This
+                  source-of-truth file-name mismatch must be resolved as part of wiring
+                  in the generated surface. src/generated/types.ts exists but is unused
+                  by the public surface. Empty tdd_spec.'
+              model-expanded-and-templates:
+                id: model-expanded-and-templates
+                title: Wire request-side triggers for declared-but-unused fields
+                description: "Candidate: Memory.expanded (types.ts:74) is a declared
+                  expansion field with no request-side trigger (no expand param on
+                  Search/List/Recall); PromptTemplate is forward-looking by its own
+                  doc (a future API endpoint could return xmem's preferred template,
+                  fetched/cached — only a client-side default exists today); and IngestResult.memories_superseded_by
+                  + stage_timings are typed but have no SDK helper to resolve a superseded
+                  chain or fetch the new fact. All convenience/forward gaps, not missing
+                  endpoints."
+                sequence: 2
+                status: todo
+                notes: 'Basis: types + api-contract spec_vs_sdk_gaps. Memory.expanded
+                  types.ts:74; PromptTemplate types.ts:283 doc; memories_superseded_by
+                  in IngestJobResult. Empty tdd_spec — no behavior to ground.'
+        docs_ref: docs/designs/m2-1.0-spec-reconciliation-and-surface.md
+  m1:
+    id: m1
+    title: Memory SDK — TypeScript client for the xtrace memory API
+    description: 'The published @xtraceai/memory SDK: a hand-written TypeScript client
+      (Node 18+, dual ESM/CJS) for the xtrace hosted memory API. Covers the full memory
+      lifecycle (ingest/jobs/search/list/get/delete), a pools-union recall() for blended
+      personal+shared retrieval, a Vercel AI SDK integration subpath, and a manual
+      release pipeline. Published at 0.2.1, pre-1.0, so the milestone is in_progress
+      until 1.0. Docs: README.md, RELEASING.md, spec/memory.json.'
+    status: in_progress
+    docs_ref: README.md
+    start_date: '2026-05-15'
+    stories:
+      s1:
+        id: s1
+        title: A developer can manage the full memory lifecycle against the
+          hosted API
+        description: 'OBJECTIVE: a developer can install the SDK, configure a client
+          with apiKey+orgId, and exercise the complete memory lifecycle — ingest (async
+          + sync wait), poll extraction jobs, search (scoped), list (auto-paginate),
+          get by id, and hard-delete — over an authenticated, retry-hardened HTTP
+          transport that surfaces typed errors. Grounded in core-client / memories-recall
+          / groups-jobs-types slices; all shipped. Transport/lifecycle paths are exercised
+          indirectly (http client faked in recall.test.ts); no client.test.ts / http.test.ts
+          / jobs.test.ts exist, so most tdd_specs are empty rather than fabricated.'
+        status: done
+        success_criteria:
+          - A MemoryClient built from apiKey+orgId exposes working memories and
+            groups namespaces over an authenticated retry-hardened transport
+            (src/client.ts, src/http.ts).
+          - ingest writes turns async-by-default and sync via wait:true,
+            returning an IngestJob; jobs poll to a terminal state via
+            client.memories.jobs.pollUntilDone (src/memories.ts ingest 206-215,
+            src/jobs.ts pollUntilDone 27).
+          - search/list/get/delete cover the read+manage surface with
+            auto-pagination on list (src/memories.ts 240-508).
+          - Every API error surfaces as a typed MemoryError subclass with
+            body-derived code (src/errors.ts, README.md:162-178).
+        projects:
+          client-foundation:
+            id: client-foundation
+            title: Client construction, config, and HTTP transport
+            description: MemoryClient is the single public entrypoint, built
+              from MemoryClientOptions, with a native-fetch HTTP transport that
+              handles auth headers, request-id generation/echo, query building,
+              retries, and Retry-After.
+            docs_ref: README.md
+            status: done
+            features:
+              memory-client-construction:
+                id: memory-client-construction
+                title: MemoryClient construction + required-field validation
+                description: 'new MemoryClient(options) validates required apiKey
+                  and orgId (throws plain Error when falsy), builds an HttpClient
+                  via defaultHttpConfig, and exposes readonly memories: Memories and
+                  groups: Groups namespaces.'
+                sequence: 1
+                status: done
+                docs_ref: README.md
+                notes: src/client.ts:MemoryClient constructor (lines 24-40);
+                  fields lines 21-22. MemoryClient exposes ONLY readonly
+                  memories and groups directly; Jobs is reachable via
+                  client.memories.jobs (Jobs is constructed inside Memories —
+                  src/memories.ts:190/193 readonly jobs), the documented path in
+                  README.md:75 (client.memories.jobs.pollUntilDone). There is no
+                  top-level client.jobs. README.md:60-65 quickstart
+                  construction.
+              client-options-surface:
+                id: client-options-surface
+                title: MemoryClientOptions config surface
+                description: 'Public options interface: apiKey (xtk_…, required),
+                  orgId (required, paired on every request), baseUrl? (default https://api.production.xtrace.ai),
+                  fetch? (injectable), maxRetries? (default 2), requestIdFactory?
+                  (default req_<uuid>). requestIdFactory wires into config as defaultRequestId.'
+                sequence: 2
+                status: done
+                docs_ref: README.md
+                notes: src/client.ts:MemoryClientOptions (lines 5-18); mapping
+                  into defaultHttpConfig client.ts:28-37; index.ts:2 exports
+                  MemoryClientOptions. sleep is overridable at HttpClientConfig
+                  level but NOT surfaced on MemoryClientOptions
+                  (spec_vs_sdk_gap).
+              default-http-config:
+                id: default-http-config
+                title: defaultHttpConfig defaults
+                description: 'defaultHttpConfig fills HttpClientConfig defaults: baseUrl
+                  ?? https://api.production.xtrace.ai, fetch ?? globalThis.fetch.bind(globalThis),
+                  maxRetries ?? 2, and always sets the real defaultSleep. Internal
+                  to the package (not re-exported from index.ts).'
+                sequence: 3
+                status: done
+                notes: src/http.ts:defaultHttpConfig (lines 129-146);
+                  defaultSleep line 22. Confirmed absent from index.ts
+                  (internal).
+              fetch-transport-query:
+                id: fetch-transport-query
+                title: Native fetch transport with URL/query building
+                description: HttpClient.request builds new URL(path, baseUrl),
+                  appends query params (skipping null/undefined, String-coercing
+                  the rest), JSON-stringifies body only when present (adding
+                  Content-Type), and returns { body, status, requestId }. 204
+                  short-circuits to undefined body; response parsed via safeJson
+                  (null on parse failure).
+                sequence: 4
+                status: done
+                notes: src/http.ts:HttpClient.request (lines 33-100); 204
+                  handling lines 79-81; safeJson lines 109-115.
+              auth-and-headers:
+                id: auth-and-headers
+                title: Auth and standard request headers
+                description: 'Every request sets Authorization: Bearer <apiKey>, X-Org-Id:
+                  <orgId>, X-Request-Id: <requestId>, Accept: application/json. Content-Type
+                  added only when a body is present.'
+                sequence: 5
+                status: done
+                notes: "src/http.ts headers literal (lines 43-48). GROUNDING CORRECTION:
+                  SDK uses Bearer + X-Org-Id, NOT 'Authorization: Token' or 'x-api-key'
+                  (diverges from spec/memory.json securitySchemes — see m2 spec-alignment)."
+              request-id-generation-echo:
+                id: request-id-generation-echo
+                title: Request-id generation and echo
+                description: "Per-request id precedence: options.requestId ?? config.defaultRequestId?.()
+                  ?? makeRequestId() (crypto.randomUUID → req_<uuid>, else base36
+                  fallback). Sent as X-Request-Id; the response's x-request-id is
+                  read back (falling back to the sent id) and attached to results
+                  and errors."
+                sequence: 6
+                status: done
+                notes: src/http.ts:makeRequestId (lines 24-28); id precedence
+                  line 41; response echo line 77.
+              retry-policy:
+                id: retry-policy
+                title: Retry policy with exponential backoff
+                description: 'Retries gated by attempt < maxRetries and not aborted:
+                  network throws retry only on idempotent (GET/HEAD); 429 (RateLimited)
+                  retries on any method; 5xx (ServerError) retries only on GET/HEAD.
+                  backoffMs = min(250*2^(attempt-1), 5000) + 0-99ms jitter.'
+                sequence: 7
+                status: done
+                notes: 'src/http.ts: idempotent line 56; network retry lines 68-75;
+                  retryable predicate line 91; backoffMs lines 103-107.'
+              retry-after-honored:
+                id: retry-after-honored
+                title: Retry-After honored on 429
+                description: On 429 the server's Retry-After (seconds,
+                  Number-coerced when finite) takes precedence over exponential
+                  backoff. Only 'retry-after' is parsed — no X-RateLimit-*
+                  bucket headers are read.
+                sequence: 8
+                status: done
+                notes: 'src/http.ts: retry wait selection line 94; toError retry-after
+                  parse lines 119-125; errors.ts:errorForStatus passes retryAfter
+                  line 63. RateLimit-Limit/Remaining/Reset NOT surfaced (spec_vs_sdk_gap
+                  → m2).'
+          ingest-and-jobs:
+            id: ingest-and-jobs
+            title: Ingest and extraction-job polling
+            description: memories.ingest writes conversation turns (async by
+              default, sync via wait:true, extract_artifacts defaulting true)
+              returning an IngestJob; client.memories.jobs
+              (Jobs.get/pollUntilDone) drives the extraction lifecycle to a
+              terminal state.
+            docs_ref: README.md
+            status: done
+            features:
+              ingest-async-sync:
+                id: ingest-async-sync
+                title: ingest — async default + ?wait=true sync,
+                  extract_artifacts default true
+                description: "Memories.ingest POSTs /v1/memories and always returns
+                  an IngestJob. Default async (202 + job_id); wait:true appends ?wait=true
+                  so the server finishes extraction inline up to ~30s, falling back
+                  to async. Payload sets extract_artifacts: body.extract_artifacts
+                  ?? true (SDK default true, a deliberate divergence from the spec's
+                  server-side default false)."
+                sequence: 1
+                status: done
+                docs_ref: README.md
+                notes: src/memories.ts:Memories.ingest (lines 206-215);
+                  IngestOptions (lines 173-182); extract_artifacts default line
+                  207. README.md:67-89 ingest quickstart. extract_artifacts
+                  default flipped to true in commit d9eb8eb (v0.1.1).
+              jobs-poll-until-done:
+                id: jobs-poll-until-done
+                title: Jobs.get + pollUntilDone polling surface
+                description: Jobs.get GETs /v1/memories/jobs/{id} → IngestJob.
+                  pollUntilDone loops until status is terminal
+                  (succeeded|failed) with exponential backoff (defaults
+                  timeoutMs 60_000, initialIntervalMs 500, maxIntervalMs 5_000,
+                  backoffFactor 1.5), throwing a descriptive Error on timeout
+                  and AbortError on abort. Reachable as client.memories.jobs.
+                sequence: 2
+                status: done
+                docs_ref: README.md
+                notes: 'src/jobs.ts: PollOptions L4, class Jobs L12, get L15, pollUntilDone
+                  L27 (defaults L28-31, terminal check L38, timeout throw L41, abort
+                  L36/L52). NO jobs.test.ts exists in the repo — pollUntilDone has
+                  no test coverage, so tdd_spec is correctly left empty (not fabricated).
+                  README.md:75 documents client.memories.jobs.pollUntilDone usage.'
+          retrieval-management:
+            id: retrieval-management
+            title: Search, list, get, and delete
+            description: 'The read/manage surface: scoped vector+filter search (and
+              retrieve sugar), an auto-paginating list iterator plus cursor-level
+              listPage, get-by-id, and hard delete.'
+            docs_ref: README.md
+            status: done
+            features:
+              search-retrieve:
+                id: search-retrieve
+                title: search — vector + filter search; retrieve sugar
+                description: Memories.search POSTs /v1/memories/search with the
+                  SearchRequest passed through verbatim (scope axes
+                  user_id/group_ids/agent_id/app_id and any filter DSL forwarded
+                  untouched), returning a SearchListEnvelope. retrieve forces
+                  mode:'compose' for the server-assembled context prompt.
+                sequence: 1
+                status: done
+                docs_ref: README.md
+                notes: src/memories.ts:search (lines 240-247), retrieve (lines
+                  255-257). Body passthrough is what recall relies on.
+                  README.md:92-95 search quickstart.
+              list-autopaginate:
+                id: list-autopaginate
+                title: list — auto-paginating async iterator + listPage cursor
+                  control
+                description: list is an async generator that yields every
+                  matching Memory, auto-paginating until has_more is false /
+                  next_cursor absent. listPage GETs /v1/memories with explicit
+                  query params (user_id, agent_id, conv_id, app_id, type,
+                  cursor, limit, order, include) for cursor-level control.
+                sequence: 2
+                status: done
+                docs_ref: README.md
+                notes: 'src/memories.ts:list async generator (lines 480-488); listPage
+                  (lines 491-508). README.md:104-106 list quickstart. NOTE: no equivalent
+                  searchAll() auto-pager for search (spec_vs_sdk_gap → m2).'
+              get-by-id:
+                id: get-by-id
+                title: get — fetch single memory by id
+                description: Memories.get GETs
+                  /v1/memories/{encodeURIComponent(id)} and returns the full
+                  Memory representation; honors signal/requestId via
+                  RequestContext.
+                sequence: 3
+                status: done
+                docs_ref: README.md
+                notes: src/memories.ts:get (lines 218-224). README.md:108-109
+                  get quickstart.
+              delete-hard:
+                id: delete-hard
+                title: delete — hard delete, idempotent by absence
+                description: Memories.delete DELETEs
+                  /v1/memories/{encodeURIComponent(id)} → void; documented as a
+                  hard delete (afterwards get returns 404, gone from
+                  list/search, a second delete 404s). Corrections flow through
+                  ingest — no PATCH/update endpoint on the SDK.
+                sequence: 4
+                status: done
+                docs_ref: README.md
+                notes: "src/memories.ts:delete (lines 232-237); JSDoc lines 226-231.
+                  README.md:111-112 delete quickstart. NOTE: SDK docstring's hard-delete
+                  claim diverges from spec's fact soft-delete semantics; spec PATCH/update
+                  endpoint unimplemented (spec_vs_sdk_gap → m2)."
+          types-and-errors:
+            id: types-and-errors
+            title: Public types and typed error hierarchy
+            description: The hand-authored public type surface (Memory
+              discriminated union, job/ingest/search/recall/envelope/template
+              types) and a MemoryError base with eight status-mapped subclasses,
+              all re-exported from index.ts.
+            docs_ref: README.md
+            status: done
+            features:
+              memory-error-hierarchy:
+                id: memory-error-hierarchy
+                title: MemoryError base + status→class mapping
+                description: MemoryError (status, errorType, code, requestId,
+                  details; name = subclass) with eight subclasses (BadRequest,
+                  Unauthorized, Forbidden, MemoryNotFound, Conflict,
+                  Unprocessable, ServerError, RateLimited{retryAfter}).
+                  errorForStatus maps 400/401/403/404/409/422/429/>=500; other
+                  statuses fall through to base.
+                sequence: 1
+                status: done
+                docs_ref: README.md
+                notes: src/errors.ts:MemoryError (lines 1-24), subclasses
+                  (26-41), errorForStatus (57-65); index.ts:12-22 re-exports.
+                  README.md:162-178 error-handling example (MemoryNotFound,
+                  RateLimited.retryAfter).
+              error-body-derivation:
+                id: error-body-derivation
+                title: error.code / errorType / message derived from API body
+                description: "errorForStatus builds args from the parsed error body:
+                  errorType = body?.type ?? 'api_error', code = body?.code ?? 'unknown_error',
+                  message default 'Memory API request failed with status <status>',
+                  details = body?.details. code comes from the body, NOT the HTTP
+                  status; body is extracted as (parsed as ApiErrorBody)?.error."
+                sequence: 2
+                status: done
+                notes: 'src/errors.ts:errorForStatus args (49-56); http.ts:toError
+                  line 118 reads parsed.error. NOTE: SDK expects {error:{...}}; spec
+                  documents {detail:{code,message}} — wire-shape mismatch (spec_vs_sdk_gap
+                  → m2).'
+              memory-discriminated-union:
+                id: memory-discriminated-union
+                title: Memory discriminated union (Fact/Artifact/Episode)
+                description: MemoryBase<T,D> carries id, type, text, scope axes,
+                  group_ids, categories, score, timestamps, details, optional
+                  expanded. FactMemory/ArtifactMemory/EpisodeMemory union
+                  discriminated on type. Detail types model Pydantic-optional
+                  nulls; ArtifactDetails.full_content is include-gated.
+                sequence: 3
+                status: done
+                notes: 'src/types.ts: MemoryType L4, FactDetails L23, ArtifactDetails
+                  L39, EpisodeDetails L50, MemoryBase L58, union L77-80. Mirrors spec
+                  Memory + adds non-spec group_ids/expanded.'
+              request-envelope-types:
+                id: request-envelope-types
+                title: Request, envelope, and job lifecycle types
+                description: IngestRequest/Message/Role;
+                  SearchRequest/SearchMode/ListQuery; ListEnvelope<T>,
+                  SearchListEnvelope (+context under compose),
+                  GroupListEnvelope;
+                  JobStatus/IngestJob/IngestJobResult/MemoryRef;
+                  RecallParams/ScopePool/RecallResult/RecallScopeStat;
+                  ApiErrorBody; PromptTemplate.
+                sequence: 4
+                status: done
+                notes: src/types.ts (Message L8, IngestRequest L82,
+                  SearchRequest L182, ListEnvelope L140, SearchListEnvelope
+                  L147, JobStatus L106, IngestJob L130, ScopePool L214,
+                  RecallParams L222). All re-exported from index.ts:24-58
+                  (verified).
+              filter-dsl-placeholder:
+                id: filter-dsl-placeholder
+                title: Filter DSL type (untyped placeholder)
+                description: Filter = Record<string, unknown> — a bare untyped
+                  bag with no operator/field grammar, surfacing only via the
+                  @deprecated SearchRequest.filters (legacy pre-#68 shape). The
+                  typed scope axes are the supported path; Filter is the legacy
+                  escape hatch.
+                sequence: 5
+                status: done
+                notes: "src/types.ts: Filter L160, consumed by SearchRequest.filters
+                  L206 (@deprecated). Maturity 'partial' in the mine; SHIPPED as-is
+                  but a typed DSL is a forward candidate (spec_vs_sdk_gap → m2)."
+      s2:
+        id: s2
+        title: An agent can recall blended personal + shared memory in one call
+        description: 'OBJECTIVE: with a registered group registry and a single recall()
+          call, an agent gets a deduped, fair-merged, score-ranked union of arbitrarily-scoped
+          search pools (axes AND within a pool, pools OR), rendered into one injectable
+          prompt with group-name labels and author attribution — hardened so malformed
+          pools fail loudly and cross-trip memory never bleeds across scopes. Grounded
+          in groups-jobs-types (Groups CRUD) + memories-recall slices, with verbatim
+          tests from src/recall.test.ts (28 it()) and src/groups.test.ts (4 it()).
+          The recall arc spans PR #6 (v0.2.0) → PR #8 pools-only (v0.2.1).'
+        status: done
+        success_criteria:
+          - A Groups CRUD client manages the /v1/groups registry of tagging
+            targets, verified by 4 groups.test.ts cases (src/groups.ts,
+            src/groups.test.ts).
+          - recall() returns a deduped, fair-merged, score-ranked union of
+            arbitrary scope pools rendered into one prompt, verified by 28
+            recall.test.ts cases (src/memories.ts:298-474, src/recall.test.ts).
+          - Malformed pools (empty, zero-axis, non-array group_ids) throw before
+            any search is issued (src/recall.test.ts pool-validation cases).
+          - renderMemoriesPrompt sections Personal/per-group/per-source with
+            group-name labels and author attribution, overridable by template or
+            custom renderer (src/memories.ts:46-171).
+        projects:
+          groups-api:
+            id: groups-api
+            title: Groups registry CRUD
+            description: 'A CRUD client for the /v1/groups registry of tagging targets
+              the ingest classifier uses: create, list, get, update, archive (soft
+              delete flipping status to archived).'
+            docs_ref: README.md
+            status: done
+            features:
+              groups-crud:
+                id: groups-crud
+                title: Groups CRUD client (/v1/groups)
+                description: 'class Groups wraps the registry: create POSTs {name,prompt}→Group
+                  (server grp_ id); list unwraps GroupListEnvelope to Group[]; get(id)
+                  fetches one; update(id) PATCHes name/prompt/status (omitted-unchanged);
+                  archive(id) soft-DELETEs flipping status to archived. All url-encode
+                  the id and take a RequestContext.'
+                sequence: 1
+                status: done
+                tdd_spec: "Given the Groups client, When create/list/get/update/archive
+                  are invoked, Then they hit /v1/groups with the right verb, unwrap
+                  the list envelope to Group[], and url-encode ids in the path (src/groups.test.ts:
+                  'create POSTs to /v1/groups and returns the group', 'list unwraps
+                  the envelope to Group[]', 'get / update / archive hit the id path
+                  with the right verb', 'url-encodes ids in the path')."
+                docs_ref: README.md
+                notes: src/groups.ts:16 class Groups; create L20, list L30, get
+                  L39, update L48, archive L62. 4 passing it() in
+                  src/groups.test.ts (verbatim names verified). README.md:30
+                  groups described as tagging targets.
+              group-types:
+                id: group-types
+                title: Group type + GroupStatus + request/envelope types
+                description: Group {object, id grp_<32hex>, name, prompt,
+                  status, created_at, updated_at}; GroupStatus =
+                  active|archived; GroupCreateRequest {name,prompt};
+                  GroupUpdateRequest {name?,prompt?,status?}; GroupListEnvelope
+                  {object:list, data} (leaner than ListEnvelope<T>). The prompt
+                  field drives ingest-time classifier membership.
+                sequence: 2
+                status: done
+                notes: 'src/types.ts: GroupStatus L307, Group L310, GroupCreateRequest
+                  L322, GroupUpdateRequest L328, GroupListEnvelope L334.'
+          recall-union:
+            id: recall-union
+            title: recall() — pools-union retrieval
+            description: recall() fans out one compose search per scope pool in
+              parallel, dedupes by id (keeping higher score), fair-merges
+              round-robin ordered by head score capped to limit, resolves group
+              names best-effort, filters cross-trip bleed, and returns memories
+              + a sectioned prompt + per-pool scope stats. Pools are REQUIRED
+              (pools-only since v0.2.1).
+            docs_ref: README.md
+            status: done
+            features:
+              recall-pool-fanout-dedupe:
+                id: recall-pool-fanout-dedupe
+                title: Pools-union fan-out + dedupe-by-id
+                description: recall(params, options) fans out one compose search
+                  per pool via Promise.all, dedupes rows by id keeping the
+                  higher-scored copy, and renders ONE prompt. Axes within a pool
+                  AND; pools OR. Defaults mode='compose', limit=10. Returns
+                  RecallResult {memories, prompt, scopes}. agent_id/app_id/mode
+                  pass through to each sub-search.
+                sequence: 1
+                status: done
+                tdd_spec: "Given multiple scope pools, When recall() runs, Then it
+                  fans out one compose search per scope and dedupes by id keeping
+                  the higher score, a single pool runs just one search, and agent_id/app_id/mode
+                  pass through (src/recall.test.ts: 'fans out one compose search per
+                  scope and dedupes by id (keeping higher score)', 'a single pool
+                  runs just one search', 'passes agent_id/app_id/mode through and
+                  honors a custom renderer', 'unions explicit pools — personal + a
+                  global app_id KB')."
+                docs_ref: README.md
+                notes: src/memories.ts:recall (lines 298-474); fan-out 367-370;
+                  bestById 422-427; defaults 317-318. README.md:97-101 pools
+                  recall example. Generalized to arbitrary pools efb0d2f;
+                  pools-only dc49b3a (v0.2.1).
+              recall-fair-merge:
+                id: recall-fair-merge
+                title: Fair-merge round-robin ordered by head score, capped to
+                  limit
+                description: After dedupe, recall sorts per-pool lists by their
+                  top row's score, then round-robins picking unseen ids until
+                  limit; a row-rich personal scope can't starve a sparse shared
+                  scope, and head-score ordering means even limit=1 yields the
+                  globally most-relevant row. Final memories re-sorted
+                  score-desc.
+                sequence: 2
+                status: done
+                tdd_spec: "Given pools of differing size, When merged, Then a row-rich
+                  personal scope can't starve the shared scope, limit 1 returns the
+                  single most-relevant row across scopes (not always personal), and
+                  the merged result is capped to limit (src/recall.test.ts: 'fair-merges
+                  so a row-rich personal scope cannot starve the shared scope', 'limit
+                  1 returns the single most-relevant row across scopes (not always
+                  personal)', 'caps the merged result to limit')."
+                notes: 'src/memories.ts:recall round-robin (lines 440-460); head-score
+                  sort 440; limit cap 443-456. Fair-merge added 32f150d; head-score
+                  ordering 43f6148 (PR #6 review rounds).'
+              recall-pool-validation:
+                id: recall-pool-validation
+                title: Pool validation — reject malformed pools, no silent drop
+                description: Empty pools throws. Each pool normalized to
+                  non-empty axes (empty group_ids:[] stripped, not forwarded as
+                  a vacuous any-of). A pool with no real axis throws loudly
+                  naming its index. A non-array group_ids (bare string from JS)
+                  is rejected explicitly. Validation throws BEFORE any search is
+                  issued.
+                sequence: 3
+                status: done
+                tdd_spec: "Given a malformed pool, When recall() validates, Then it
+                  throws when pools is empty, rejects a malformed pool alongside a
+                  valid one with no silent drop, strips an empty group_ids axis, rejects
+                  a non-array group_ids, and throws when no pool carries a scope axis
+                  — all before issuing a search (src/recall.test.ts: 'throws when
+                  pools is empty', 'rejects a malformed pool alongside a valid one
+                  (no silent drop)', 'strips an empty group_ids axis instead of forwarding
+                  a vacuous filter', 'rejects a non-array group_ids (JS caller passing
+                  a bare string)', 'throws when no pool carries a scope axis')."
+                notes: 'src/memories.ts:recall normalization (lines 328-355); empty-pools
+                  throw 330; non-array guard 336-342; empty-axis throw 348-353. Hardening
+                  commits 3539b59, 685896b, 005dcf8 (PR #8 review).'
+              recall-group-name-resolution:
+                id: recall-group-name-resolution
+                title: Best-effort group-name resolution via GET /v1/groups
+                description: "When any pool requests group_ids, recall fires GET /v1/groups
+                  in parallel and builds an id→name map. Best-effort: on failure it
+                  catches to {} so the render falls back to id-based labels and recall
+                  doesn't fail. Resolved names label the shared section; the opaque
+                  id doesn't leak once resolved."
+                sequence: 4
+                status: done
+                tdd_spec: "Given a group pool, When recall() runs, Then it resolves
+                  group names from the registry and labels the shared section (src/recall.test.ts:
+                  'resolves group names from the registry and labels the shared section')."
+                notes: 'src/memories.ts:recall namesJob (lines 375-383); requestedGroupIds
+                  361; passed as groupNames 466. Group-NAME labeling added e4db7ce
+                  (PR #6).'
+              recall-bleed-filtering:
+                id: recall-bleed-filtering
+                title: Cross-trip bleed-filtering + source/author attribution
+                description: A PLAIN {user_id} pool is filtered to untagged or
+                  requested-group rows when groups are targeted (other-group
+                  rows dropped); deliberately-scoped user pools, group pools,
+                  and app/agent-only pools are returned as their axes select.
+                  Non-user KB pools get a sourceLabel; a second user pool's rows
+                  are author-attributed.
+                sequence: 5
+                status: done
+                tdd_spec: "Given a group recall, When a plain personal pool is present,
+                  Then it drops the caller's other-group memories from the personal
+                  scope, a non-group pool doesn't bleed in other groups, a non-user
+                  pool's rows are kept even with an unrelated group tag, a deliberately-scoped
+                  user pool (user_id + app_id) isn't bleed-filtered, and a second
+                  user pool's rows are attributed (src/recall.test.ts: 'group recall
+                  drops the callers other-group memories from the personal scope',
+                  'a non-group pool does not bleed in other groups when a group pool
+                  is present', 'keeps a non-user pools rows even if they carry an
+                  unrelated group tag', 'does not bleed-filter a deliberately-scoped
+                  user pool (user_id + app_id)', 'attributes a second user pools rows
+                  (not presented as the viewers)')."
+                notes: 'src/memories.ts:recall bleed filter (lines 409-417); sourceLabels
+                  (419-433); viewerUserId 363. Hardening commits ed13ffc, 91460e5,
+                  906f8b2 (PR #8 review).'
+          prompt-rendering:
+            id: prompt-rendering
+            title: Deterministic prompt rendering
+            description: 'renderMemoriesPrompt + DEFAULT_PROMPT_TEMPLATE build the
+              injectable context block (no LLM): Personal / per-group / per-source
+              sections, type-aware artifact/episode rendering, author attribution,
+              and template/renderer overrides — exported and overridable per recall
+              call.'
+            status: done
+            features:
+              render-sections-template:
+                id: render-sections-template
+                title: Sectioned render with template/renderer override
+                description: "renderMemoriesPrompt deterministically builds a context
+                  block: empty→'', only-personal→flat bulleted list, otherwise Personal/per-group/per-source
+                  sections. Categories and recorded date toggle from the template.
+                  recall accepts options.template to override format and options.render
+                  to bypass the renderer entirely."
+                sequence: 1
+                status: done
+                tdd_spec: "Given a set of memories, When rendered, Then it returns
+                  an empty string for no memories, renders a flat bulleted block when
+                  all are one kind, splits personal vs per-group shared sections labeled
+                  by group name, and honors a custom template/renderer (src/recall.test.ts:
+                  'returns an empty string for no memories', 'renders a flat bulleted
+                  block when all memories are one kind', 'splits personal vs per-group
+                  shared sections, labeled by group name', 'honors a custom template
+                  (header + per-type labels + toggles)', 'passes agent_id/app_id/mode
+                  through and honors a custom renderer')."
+                notes: 'src/memories.ts:DEFAULT_PROMPT_TEMPLATE (26-34); renderMemoriesPrompt
+                  (46-171). Exported from index.ts:4. Template extraction fdfac34
+                  (PR #6).'
+              render-group-labeling:
+                id: render-group-labeling
+                title: Group-name labeling + id fallback + requestedGroupIds
+                  sectioning
+                description: 'Group-tagged rows bucket into per-group sections in
+                  first-appearance order, labeled by name or unknownGroupLabel with
+                  {id}. opts.requestedGroupIds restricts which groups get a section:
+                  a row tagged solely to a non-requested group renders under Personal;
+                  omitting it gives back-compat where every group tag gets a section.'
+                sequence: 2
+                status: done
+                tdd_spec: "Given group-tagged rows, When rendered, Then the section
+                  falls back to an id-based label when the group name is unknown,
+                  only requested groups get their own section (other-group rows fall
+                  under Personal), and a row tagged to requested + extra groups shows
+                  only under the requested section (src/recall.test.ts: 'falls back
+                  to an id-based label when the group name is unknown', 'buckets only
+                  requested groups; an other-group row falls under Personal', 'a row
+                  tagged to requested + extra groups shows only under the requested
+                  section')."
+                notes: src/memories.ts:isGroupRow (75-76); bucketing 129-142;
+                  label 163; requestedGroupIds JSDoc 52-59.
+              render-attribution-types-source:
+                id: render-attribution-types-source
+                title: Author attribution + type-aware + source sectioning
+                description: "Attribution gated on includeGroupAuthor && user_id:
+                  in a group section the author is always named ('you:' for viewer,
+                  user_id otherwise); outside a group only a non-viewer row is attributed
+                  and only when a viewer is known. Artifacts/episodes with a title
+                  render '[document]/[conversation] {title}: {text}'; source-labeled
+                  KB rows section under their own header unattributed."
+                sequence: 3
+                status: done
+                tdd_spec: "Given rows of mixed type/author, When rendered, Then single-user
+                  personal lines stay plain when no viewer is given, shared (group)
+                  lines are attributed to their author ('you' for the viewer), artifacts/episodes
+                  are tagged by type (with title) while facts stay plain, and a KB
+                  pool unions in under its own source section (src/recall.test.ts:
+                  'leaves single-user personal lines plain when no viewer is given',
+                  'attributes shared (group) lines to their author; you for the viewer',
+                  'tags artifacts/episodes by type (with title); facts stay plain',
+                  'unions explicit pools — personal + a global app_id KB')."
+                notes: src/memories.ts:line() attribution (85-98); type handling
+                  (87-92,99); source sectioning (113-169). Author attribution
+                  c83ce46, viewer-gating 33d19fd; type-awareness 070cbfd; source
+                  sectioning 91460e5.
+      s3:
+        id: s3
+        title: The SDK drops into a Vercel AI SDK app with zero glue
+        description: 'OBJECTIVE: a Vercel AI SDK developer can add memory to an app
+          via the @xtraceai/memory/ai-sdk subpath — either a memory-aware model wrapper
+          (auto-context before each call, auto-ingest after) or model-callable memory
+          tools (search/save) — with ai and zod as optional peer deps so the core
+          SDK has no hard dependency on them. Grounded in the ai-sdk slice. Tools
+          behavior verified by 3 vitest cases in src/ai-sdk/tools.test.ts; provider.ts
+          has no co-located unit tests, so its tdd_specs are empty. Subpath added
+          2ed0a44 (v0.1.0).'
+        status: done
+        success_criteria:
+          - createXtraceMemory wraps any LanguageModel to auto-search memory
+            before each call and auto-ingest the turn after, swallowing xtrace
+            errors so memory never breaks generation (src/ai-sdk/provider.ts).
+          - memoryTools exposes search_memory and (optionally) save_memory as
+            model-callable AI SDK tools, verified by 3 tools.test.ts cases
+            (src/ai-sdk/tools.ts, src/ai-sdk/tools.test.ts).
+          - Group-scope routing normalizes group_ids once so search and save
+            agree, routing through recall when groups are present
+            (src/ai-sdk/tools.ts:68-106).
+          - ai and zod are optional peer deps behind a dedicated ./ai-sdk export
+            so the core SDK installs without them (package.json
+            peerDependenciesMeta, exports).
+        projects:
+          ai-sdk-integration:
+            id: ai-sdk-integration
+            title: Vercel AI SDK integration subpath
+            description: 'The ./ai-sdk export: a memory-aware LanguageModel wrapper
+              (createXtraceMemory) and memory tools (memoryTools), wired as an optional
+              integration so ai and zod are optional peer dependencies.'
+            docs_ref: README.md
+            status: done
+            features:
+              memory-aware-wrapper:
+                id: memory-aware-wrapper
+                title: createXtraceMemory — memory-aware model wrapper
+                description: 'createXtraceMemory(options) returns model→model via
+                  wrapLanguageModel with a v3 LanguageModelMiddleware. Options: apiKey,
+                  orgId, baseUrl?, user_id, conv_id, searchLimit (default 8), injectContext
+                  (default true), autoIngest (default true), optional client injection.'
+                sequence: 1
+                status: done
+                docs_ref: README.md
+                notes: src/ai-sdk/provider.ts:78 createXtraceMemory;
+                  CreateXtraceMemoryOptions L38; defaults 89-98; wrap() 175-185.
+                  Exported from src/ai-sdk/index.ts:18-19. README.md:119-139. No
+                  co-located unit tests (no provider.test.ts).
+              auto-context-search:
+                id: auto-context-search
+                title: Auto-context search before each call
+                description: transformParams finds the last user message and
+                  calls memories.search({query, filters:{user_id},
+                  limit:searchLimit}); non-empty results prepend a leading
+                  system 'Memory context — …' block. Gated by injectContext;
+                  returns params unchanged when disabled/no text/zero results.
+                  Search failures are caught, logged, and pass through so memory
+                  never breaks generation.
+                sequence: 2
+                status: done
+                notes: src/ai-sdk/provider.ts:102-138 transformParams; context
+                  block 121-123; error swallow 132-137; injectContext default
+                  96.
+              auto-ingest-turn:
+                id: auto-ingest-turn
+                title: Auto-ingest after each call
+                description: wrapGenerate extracts assistant text and
+                  fire-and-forgets ingestTurn; wrapStream accumulates
+                  assistantText from text-delta chunks and ingests on flush.
+                  ingestTurn re-derives the last user text, skips when either is
+                  empty, and calls memories.ingest({messages:[user,assistant],
+                  user_id, conv_id, extract_artifacts:false}, {wait:true}).
+                  Gated by autoIngest; errors caught and logged.
+                sequence: 3
+                status: done
+                notes: src/ai-sdk/provider.ts:140-147 wrapGenerate; 149-172
+                  wrapStream (text-delta accumulation 162-164); ingestTurn
+                  189-217; autoIngest default 97. extract_artifacts:false
+                  preserved per d9eb8eb.
+              memory-tools:
+                id: memory-tools
+                title: memoryTools — search_memory / save_memory as AI SDK tools
+                description: memoryTools(client, scope, options) builds ai SDK
+                  tool() defs with zod inputSchemas the model calls
+                  deliberately. search_memory {query, limit? 1..20}; save_memory
+                  {fact} → ingest with {wait:true}. Scope {user_id, conv_id,
+                  group_ids?}; options {searchLimit default 5, includeSave
+                  default true}. includeSave:false returns only {search_memory}
+                  (read-only).
+                sequence: 4
+                status: done
+                docs_ref: README.md
+                notes: src/ai-sdk/tools.ts:58 memoryTools; search_memory 71-113;
+                  save_memory 119-148; includeSave early-return 115-117.
+                  Exported from src/ai-sdk/index.ts:21-22. README.md:141-160.
+              tools-group-scope-routing:
+                id: tools-group-scope-routing
+                title: Group-scope routing + defensive group_ids normalization
+                description: "group_ids normalized once: only a non-empty Array counts
+                  as 'has groups' (bare string / empty array → undefined) so search
+                  and save agree and recall never gets a zero-axis pool. With groups:
+                  search routes through recall({pools:[{user_id},{group_ids}]}), save
+                  forwards group_ids. Without groups: personal-only search, save omits
+                  group_ids."
+                sequence: 5
+                status: done
+                tdd_spec: "Given a tools scope, When group_ids is set, Then an array
+                  group_ids routes search through recall and save forwards group_ids;
+                  with no group_ids search is personal-only and save sends no group_ids;
+                  and a non-array group_ids is treated as no-groups by BOTH tools
+                  so the gates agree (src/ai-sdk/tools.test.ts: 'array group_ids →
+                  search routes through recall, save forwards group_ids', 'no group_ids
+                  → search is personal-only, save sends no group_ids', 'a non-array
+                  group_ids is treated as no-groups by BOTH tools (gates agree)')."
+                notes: 'src/ai-sdk/tools.ts:68-69 normalization; recall vs search
+                  branch 92-106; save group_ids spread 138. 3 passing it() in tools.test.ts
+                  (verbatim names verified). Group routing + consistent gate added
+                  32f150d (PR #6 review).'
+              optional-peer-deps:
+                id: optional-peer-deps
+                title: Optional peer-deps design (ai, zod optional; separate
+                  export)
+                description: ai (^5.0.0 || ^6.0.0) and zod (^3.23.0 || ^4.0.0)
+                  are peerDependencies declared optional via
+                  peerDependenciesMeta, so the core SDK installs without them;
+                  only ./ai-sdk consumers need them. The integration lives
+                  behind a dedicated ./ai-sdk exports entry (separate
+                  types/import/require).
+                sequence: 6
+                status: done
+                docs_ref: README.md
+                notes: package.json peerDependencies + peerDependenciesMeta
+                  {ai/zod optional} (verified package.json:22-33); exports
+                  './ai-sdk' entry (package.json:16-20). Requirement note
+                  src/ai-sdk/index.ts:16 (ai >= 5, zod >= 3.23). README.md:117.
+      s4:
+        id: s4
+        title: Maintainers can cut and publish a release safely and repeatably
+        description: 'OBJECTIVE: a maintainer can build, version, and publish @xtraceai/memory
+          deterministically — a tsup dual ESM/CJS build with .d.ts, types regenerable
+          from the committed OpenAPI spec, a prepublishOnly typecheck→test→build gate
+          that blocks bad releases, and a documented manual npm-publish runbook. The
+          legacy release-please/Stainless automation is retired (off-main, declared
+          unused). Grounded in the history-release slice + package.json/tsup.config.ts/RELEASING.md.'
+        status: done
+        success_criteria:
+          - npm run build produces a dual ESM/CJS bundle with .d.ts for both .
+            and ./ai-sdk entries (tsup.config.ts, package.json exports, dist/).
+          - npm run gen:types regenerates the typed API surface from the
+            committed spec/memory.json (package.json gen:types,
+            openapi-typescript devDep).
+          - The prepublishOnly gate runs typecheck→test→build and aborts publish
+            on any failure (package.json prepublishOnly, RELEASING.md:53-54).
+          - A maintainer can follow RELEASING.md to bump, publish to npm, and
+            tag a release; tags v0.1.1/v0.2.0/v0.2.1 exist (RELEASING.md, git
+            tags).
+        projects:
+          release-engineering:
+            id: release-engineering
+            title: Build, codegen, and manual release pipeline
+            description: 'The packaging and release surface: dual-format build, OpenAPI-driven
+              type codegen, the publish safety gate, the manual publish runbook, and
+              the explicitly retired automation.'
+            docs_ref: RELEASING.md
+            status: done
+            features:
+              tsup-dual-build:
+                id: tsup-dual-build
+                title: tsup dual ESM/CJS build with type declarations
+                description: tsup builds two entries (src/index.ts,
+                  src/ai-sdk/index.ts) in esm + cjs, emits .d.ts (dts:true),
+                  clean, sourcemap, target es2022, cjs→.cjs / esm→.js.
+                  package.json exports map wires '.' and './ai-sdk'
+                  (types/import/require); sideEffects:false. build=tsup,
+                  dev=tsup --watch.
+                sequence: 1
+                status: done
+                notes: 'tsup.config.ts:1-13; package.json exports map (10-21), sideEffects:false
+                  (42), build/dev scripts (44-45). Verified: dist/ contains index
+                  + ai-sdk outputs.'
+              openapi-codegen:
+                id: openapi-codegen
+                title: openapi-typescript codegen from spec/memory.json
+                description: scripts.gen:types runs openapi-typescript
+                  spec/memory.json -o src/generated/types.ts to regenerate the
+                  typed API surface from the committed OpenAPI spec;
+                  openapi-typescript is a devDependency. Both spec/memory.json
+                  and src/generated/types.ts are present.
+                sequence: 2
+                status: done
+                docs_ref: spec/memory.json
+                notes: "package.json:49 gen:types targets spec/memory.json; openapi-typescript
+                  ^7.4.0 devDep (package.json:56). spec/memory.json + src/generated/types.ts
+                  present. INCONSISTENCY: src/types.ts:1 header says the hand-written
+                  types match 'openapi/memory_v2.json' — a DIFFERENT, non-existent
+                  path than the gen:types target (spec/memory.json). The generated
+                  surface is not yet wired in over the hand-authored one (spec_vs_sdk_gap
+                  → m2)."
+              prepublish-gate:
+                id: prepublish-gate
+                title: prepublishOnly safety gate (typecheck → test → build)
+                description: scripts.prepublishOnly = 'npm run typecheck && npm
+                  run test && npm run build' (tsc --noEmit, vitest run
+                  --passWithNoTests, tsup), aborting publish if any fail.
+                  RELEASING.md calls this the safety net; the project's local
+                  .git/hooks/pre-commit mirrors it on code-staged commits, and
+                  there is NO CI, so this is the only automated safety net.
+                sequence: 3
+                status: done
+                docs_ref: RELEASING.md
+                notes: package.json:51 prepublishOnly + typecheck/test scripts
+                  (46-47); RELEASING.md:53-54 (safety-net line).
+              manual-publish-runbook:
+                id: manual-publish-runbook
+                title: Manual npm publish runbook
+                description: 'RELEASING.md documents the manual flow: clean/green
+                  main → npm version X --no-git-tag-version → commit release: vX.Y.Z
+                  → push → confirm npm whoami is tristangc → npm publish --access
+                  public (scoped) → verify via npm view → only then tag vX.Y.Z. npm
+                  latest is the source of truth; git tags are bookkeeping. Pre-1.0:
+                  breaking changes bump the minor.'
+                sequence: 4
+                status: done
+                docs_ref: RELEASING.md
+                notes: 'RELEASING.md:1-74 (whoami=tristangc lines 24-32; minor-bump
+                  policy line 51). Shipped tags v0.1.1/v0.2.0/v0.2.1 confirmed via
+                  git tag. PR #7 (tc/releasing-doc) hardened the doc with 0.2.0-run
+                  lessons.'
+              retired-release-automation:
+                id: retired-release-automation
+                title: Retired release-please / Stainless automation (legacy,
+                  off-main)
+                description: "An older automated-release lineage (release-please PRs
+                  #1/#2, Stainless config, CI commits) lives ONLY on the off-main
+                  origin/upstream 'generated' branch (root 582cc23, NOT an ancestor
+                  of HEAD). RELEASING.md explicitly declares any such config legacy
+                  and unused; the active main line is hand-written + manually published."
+                sequence: 5
+                status: done
+                docs_ref: RELEASING.md
+                notes: "RELEASING.md:3-6 disclaims it. git history: 38d392e Stainless,
+                  f3c7506/81d7aa8 release-please merges, on 'generated' branch only.
+                  Status done = 'retirement is in effect' (the decision is shipped),
+                  not active work."

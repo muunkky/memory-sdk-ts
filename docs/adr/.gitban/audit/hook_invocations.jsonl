@@ -1,0 +1,10 @@
+{"ts":"2026-06-13T04:51:36.535Z","hook":"validate-no-direct-gitban-state-edit","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}
+{"ts":"2026-06-13T04:51:36.541Z","hook":"cwd-pin-check","tool":"Bash","classification":"block","target":"git mv","bypass_sentinel_id":"","exit_code":2,"handle":"unknown"}
+{"ts":"2026-06-13T04:51:46.547Z","hook":"cwd-pin-check","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}
+{"ts":"2026-06-13T04:51:46.555Z","hook":"validate-no-direct-gitban-state-edit","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}
+{"ts":"2026-06-13T04:51:52.697Z","hook":"cwd-pin-check","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}
+{"ts":"2026-06-13T04:51:52.698Z","hook":"validate-no-direct-gitban-state-edit","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}
+{"ts":"2026-06-13T04:51:58.277Z","hook":"cwd-pin-check","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}
+{"ts":"2026-06-13T04:51:58.281Z","hook":"validate-no-direct-gitban-state-edit","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}
+{"ts":"2026-06-13T04:52:50.288Z","hook":"cwd-pin-check","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}
+{"ts":"2026-06-13T04:52:50.298Z","hook":"validate-no-direct-gitban-state-edit","tool":"Bash","classification":"pass","target":"","bypass_sentinel_id":"","exit_code":0,"handle":"unknown"}

@@ -177,6 +177,44 @@ try {
 }
 ```
 
+`error.code` is populated regardless of which envelope the server emits — the
+legacy `{ error: { code, message } }`, the spec `{ detail: { code, message } }`,
+or FastAPI's plain `{ detail: "..." }` string (which sets `error.message`). A
+`422` validation response (`{ detail: [...] }`) surfaces as `Unprocessable` with
+`error.code === "validation_error"` and the raw per-field array under
+`error.details.validation_errors`:
+
+```ts
+import { Unprocessable } from "@xtraceai/memory";
+
+try {
+  await client.memories.search({ query: "" });
+} catch (err) {
+  if (err instanceof Unprocessable) {
+    const fields = err.details?.validation_errors; // raw FastAPI 422 array
+  }
+}
+```
+
+### Rate limits
+
+When the server sends `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset`
+headers, the parsed `RateLimitSnapshot` is available on both a successful response
+and any thrown error, so you can back off proactively before you hit a `429`:
+
+```ts
+const { rateLimit } = await client.http.request("GET", "/v1/memories");
+if (rateLimit?.remaining === 0) {
+  // wait rateLimit.reset seconds before the next call
+}
+```
+
+On a thrown error, read the same snapshot from `err.rateLimit` (e.g.
+`err.rateLimit?.reset` on a `RateLimited`). Absent headers leave every field
+`undefined`. Note: rate-limit state is exposed per-response — there is no
+client-level "last seen" global, because the SDK fans out concurrent requests
+and a shared snapshot would be racy.
+
 ## Documentation
 
 Full documentation at [docs.xtrace.ai](https://docs.xtrace.ai).

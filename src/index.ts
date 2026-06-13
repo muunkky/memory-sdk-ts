@@ -21,6 +21,8 @@ export {
   ServerError,
 } from "./errors.js";
 
+export type { RateLimitSnapshot } from "./errors.js";
+
 export type {
   ApiErrorBody,
   ArtifactDetails,

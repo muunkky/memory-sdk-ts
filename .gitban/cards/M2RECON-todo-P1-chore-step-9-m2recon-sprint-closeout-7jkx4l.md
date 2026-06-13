@@ -97,3 +97,38 @@ Close out sprint M2RECON: archive done cards, generate the sprint summary, updat
 * [ ] Code changes (if any) are reviewed and merged. <!-- cite: none -->
 * [ ] Follow-up tickets are created and prioritized for next sprint. <!-- cite: none -->
 * [ ] Team retrospective includes discussion of cleanup backlog (if significant). <!-- cite: none -->
+
+
+### Item 1: Doc-snippet typecheck gate so README ```ts examples can't drift from the public surface
+
+The README's TypeScript code blocks are not type-checked by any gate, so a
+non-compiling example (exactly the B1 defect that blocked card m89x9w) sails
+through `typecheck → test → build` silently. There is no CI — this local gate is
+the only automated safety net — so untyped doc snippets are a standing
+public-surface-drift hazard. A lightweight mechanism would close it: a
+`tsd`/`expect-error` check, or a doc-snippet extraction step that compiles the
+README ```ts fences against the package's compiled public surface, wired into
+the existing `typecheck → test → build` gate. It is a self-contained tooling
+addition with no live-API dependency, and it directly hardens against the class
+of defect that blocked m89x9w.
+
+Captured here (not filed as a sprint card) because it blocks no downstream
+M2RECON card and has no external prerequisite — it is a non-blocking hardening
+opportunity. At closeout it is a natural promotion candidate: it could be folded
+into card f5ddyp's regen-guard work (step 7, "type-surface source-of-truth fix +
+regen guard") or shipped alongside the README updates in card u4uqio (step 8,
+release v0.3.0), or promoted to a next-sprint card if neither fits cleanly.
+
+| Deferral Type | Description | Applies (true/false) |
+|---------------|-------------|----------------------|
+| backlog | Genuinely future work; external prerequisite or belongs to a different milestone; can't be done in upcoming work without a shape-change. | |
+| sprint | Blocks or enables sprint-scoped work (current or next); needs its own card with a sprint tag. | |
+| note-only | Captured for record; no action; current output is fine as-is. | |
+| fixed-with-note | Trivial enough for the closeout agent to fix inline during closeout, with a note of what was done (typo, lint fix, stale comment). | |
+
+**Source:** m89x9w review 1
+**Files touched:** README.md (```ts fences), package.json (gate wiring / scripts), possibly a new doc-snippet extraction or tsd/expect-error harness under the repo root
+**Action taken:** {closeout fills prose — card {id} created in sprint {tag} / card {id} created in loose backlog / noted, no action / fixed in commit {hash}}
+
+- [ ] Item 1 classified (exactly one deferral type marked `true` above)
+- [ ] Item 1 actioned (action taken matches chosen type)

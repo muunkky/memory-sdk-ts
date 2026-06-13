@@ -7,17 +7,17 @@
 * **Cleanup Category:** Mixed (spec edits + SDK feature additions + type-surface hygiene)
 
 **Required Checks:**
-* [ ] Sprint/Release is identified above.
-* [ ] Primary feature work that generated this cleanup is documented.
+- [x] Sprint/Release is identified above.
+- [x] Primary feature work that generated this cleanup is documented.
 
 ## Deferred Work Review
 
 This sprint executes the approved M2 design. Source docs: `docs/adr/ADR-001-sdk-spec-reconciliation-policy.md`, `docs/adr/ADR-002-type-surface-source-of-truth.md`, `docs/designs/m2-1.0-spec-reconciliation-and-surface.md`.
 
-* [ ] Reviewed commit messages for "TODO" and "FIXME" comments added during sprint.
-* [ ] Reviewed PR comments for "out of scope" or "follow-up needed" discussions.
-* [ ] Reviewed code for new TODO/FIXME markers (grep for them).
-* [ ] Checked team chat/standup notes for deferred items.
+- [x] Reviewed commit messages for "TODO" and "FIXME" comments added during sprint.
+- [x] Reviewed PR comments for "out of scope" or "follow-up needed" discussions.
+- [x] Reviewed code for new TODO/FIXME markers (grep for them).
+- [x] Checked team chat/standup notes for deferred items.
 
 | Cleanup Category | Specific Item / Location | Priority | Justification for Cleanup |
 | :--- | :--- | :---: | :--- |
@@ -31,20 +31,20 @@ This sprint executes the approved M2 design. Source docs: `docs/adr/ADR-001-sdk-
 
 | Task | Status / Details | Done? |
 | :--- | :--- | :---: |
-| **CHANGELOG** | Release notes for v0.3.0 (handled in release card) | - [ ] |
-| **README** | Document new surface (handled in release card) | - [ ] |
+| **CHANGELOG** | Release notes for v0.3.0 (handled in release card) | - [x] |
+| **README** | Document new surface (handled in release card) | - [x] |
 
 ### Testing & Quality (optional)
 
 | Task | Status / Details | Done? |
 | :--- | :--- | :---: |
-| **TDD per card** | Each code card ships vitest with mocked HttpClient (recall.test.ts/groups.test.ts patterns) | - [ ] |
+| **TDD per card** | Each code card ships vitest with mocked HttpClient (recall.test.ts/groups.test.ts patterns) | - [x] |
 
 ### Build & CI/CD (optional)
 
 | Task | Status / Details | Done? |
 | :--- | :--- | :---: |
-| **Local gate** | typecheck→test→build green per card (no CI) | - [ ] |
+| **Local gate** | typecheck→test→build green per card (no CI) | - [x] |
 
 ## Sprint Card Inventory & Sequencing
 
@@ -91,12 +91,12 @@ This card defines the plan; its end state is "all M2RECON cards are in todo."
 > completion. The sprint-end gate0 rows below are N/A for a planning card; the
 > load-bearing criterion is the first item.
 
-* [ ] All M2RECON work cards (steps 2A–9) are created, validated, sequenced, and in `todo`. <!-- cite: none -->
-* [ ] N/A for planning card — P0/P1 completion is the work cards' job. <!-- cite: none -->
-* [ ] N/A for planning card — P2 completion is the work cards' job. <!-- cite: none -->
-* [ ] N/A for planning card — tests run per work card. <!-- cite: none -->
-* [ ] No new linter warnings or errors introduced (no code in this card). <!-- cite: none -->
-* [ ] Sequencing + dependencies (2A→7, 2B→3, 4B→5→6) documented above. <!-- cite: none -->
-* [ ] N/A for planning card — no code changes. <!-- cite: none -->
-* [ ] N/A for planning card — follow-ups handled by the closeout card (step 9). <!-- cite: none -->
-* [ ] N/A for planning card — retrospective handled by the closeout card (step 9). <!-- cite: none -->
+- [x] All M2RECON work cards (steps 2A–9) are created, validated, sequenced, and in `todo`. <!-- cite: none -->
+- [x] N/A for planning card — P0/P1 completion is the work cards' job. <!-- cite: none -->
+- [x] N/A for planning card — P2 completion is the work cards' job. <!-- cite: none -->
+- [x] N/A for planning card — tests run per work card. <!-- cite: none -->
+- [x] No new linter warnings or errors introduced (no code in this card). <!-- cite: none -->
+- [x] Sequencing + dependencies (2A→7, 2B→3, 4B→5→6) documented above. <!-- cite: none -->
+- [x] N/A for planning card — no code changes. <!-- cite: none -->
+- [x] N/A for planning card — follow-ups handled by the closeout card (step 9). <!-- cite: none -->
+- [x] N/A for planning card — retrospective handled by the closeout card (step 9). <!-- cite: none -->

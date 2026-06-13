@@ -1,0 +1,36 @@
+{
+  "sprint_id": "20260613-014056-sprint-m2recon-v0-3-0",
+  "sprint_name": "M2Recon-V0.3.0",
+  "sprint_folder": "20260613-014056-sprint-m2recon-v0-3-0",
+  "created_at": "2026-06-13T01:40:56.535389",
+  "start_date": null,
+  "end_date": "2026-06-13",
+  "archived_at": "2026-06-13T01:40:56.535389",
+  "card_ids": [
+    "4ofayn",
+    "esxk0v",
+    "m89x9w",
+    "zc9r8x",
+    "pktue3",
+    "lzwwfb",
+    "77u8f3",
+    "l3jhjg",
+    "f5ddyp",
+    "u4uqio"
+  ],
+  "metrics": {
+    "total_cards": 10,
+    "by_priority": {
+      "P1": 5,
+      "P2": 5
+    },
+    "by_type": {
+      "chore": 3,
+      "documentation": 1,
+      "feature": 6
+    },
+    "by_handle": {
+      "Unassigned": 10
+    }
+  }
+}

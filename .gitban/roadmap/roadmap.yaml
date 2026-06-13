@@ -22,7 +22,7 @@ milestones:
       These are NOT committed work — they capture where the SDK and the OpenAPI spec/memory.json
       have drifted, for a maintainer to triage before locking the 1.0 contract. No
       gitban/.claude tooling work belongs here. Docs: spec/memory.json, RELEASING.md.'
-    status: in_progress
+    status: done
     docs_ref: spec/memory.json
     stories:
       s5:
@@ -39,7 +39,7 @@ milestones:
           none is committed. Basis: api-contract and types spec_vs_sdk_gaps cross-checked
           against src/ and spec/memory.json; pre-1.0 minor-bump policy in RELEASING.md.
           No work has started."
-        status: in_progress
+        status: done
         success_criteria:
           - 'Every confirmed SDK↔spec divergence (error-envelope shape, auth header
             form, rate-limit headers, PATCH/update endpoint) is triaged to a recorded
@@ -59,7 +59,7 @@ milestones:
               unsurfaced rate-limit headers. Each is a 1.0 decision point (align the
               SDK, or update the spec to match the SDK's actual target API)."
             docs_ref: docs/adr/ADR-001-sdk-spec-reconciliation-policy.md
-            status: todo
+            status: done
             features:
               error-envelope-mismatch:
                 id: error-envelope-mismatch
@@ -72,7 +72,7 @@ milestones:
                   stable codes. Reconcile which shape the live API actually returns
                   and align one side."
                 sequence: 1
-                status: todo
+                status: done
                 docs_ref: spec/memory.json
                 notes: "Basis: api-contract spec_vs_sdk_gap. src/http.ts:118 reads
                   parsed.error; src/errors.ts:errorForStatus code default 'unknown_error';
@@ -88,7 +88,7 @@ milestones:
                   is used. Determine which scheme the live API honors and align the
                   SDK or the spec for 1.0."
                 sequence: 2
-                status: todo
+                status: done
                 docs_ref: spec/memory.json
                 notes: "Basis: api-contract spec_vs_sdk_gap. src/http.ts:43-48 (Bearer);
                   spec securitySchemes (verified spec/memory.json:1819-1830: x-api-key
@@ -103,7 +103,7 @@ milestones:
                   (429) and x-request-id — there's no way for a caller to proactively
                   throttle. A 1.0 could parse and expose these."
                 sequence: 3
-                status: todo
+                status: done
                 docs_ref: spec/memory.json
                 notes: 'Basis: api-contract spec_vs_sdk_gap. src/http.ts reads only
                   retry-after + x-request-id; spec RateLimit-* headers documented
@@ -120,14 +120,11 @@ milestones:
                   (per spec, wrongly) the API has no update endpoint. Confirm the
                   endpoint exists on the live API before building."
                 sequence: 4
-                status: todo
+                status: done
                 docs_ref: spec/memory.json
-                notes: 'Basis: api-contract spec_vs_sdk_gap (largest). Spec defines
-                  PATCH /v1/memories/{memory_id} with UpdateRequest (verified spec/memory.json:596-656);
-                  src/memories.ts has no update. NOTE: update() existed historically
-                  and was removed in a7da7a9 (PR #6) because the server returned 405
-                  — so the spec may simply be stale here. Resolve the contradiction
-                  before any work. Empty tdd_spec.'
+                notes: "WON'T-DO in SDK: server returns 405 (PR #6); spec annotated
+                  as removed per ADR-001 A4. Corrections flow through ingest. Triaged
+                  + recorded — no silent drift."
           search-capabilities:
             id: search-capabilities
             title: Spec search capabilities not yet surfaced
@@ -135,7 +132,7 @@ milestones:
               expose: a typed filter DSL, the include[] mechanism on search, and search-cursor
               auto-iteration. Forward candidates for a richer 1.0 retrieval surface."
             docs_ref: docs/designs/m2-1.0-spec-reconciliation-and-surface.md
-            status: todo
+            status: done
             features:
               typed-filter-dsl:
                 id: typed-filter-dsl
@@ -147,7 +144,7 @@ milestones:
                   untyped escape hatch. A typed operator/builder API is a forward
                   candidate."
                 sequence: 1
-                status: todo
+                status: done
                 docs_ref: spec/memory.json
                 notes: 'Basis: types + api-contract spec_vs_sdk_gaps. src/types.ts:Filter
                   L160 (@deprecated path). Spec DSL operator table in spec/memory.json
@@ -164,7 +161,7 @@ milestones:
                   include param is plumbed). RecallParams exposes no include[] at
                   all."
                 sequence: 2
-                status: todo
+                status: done
                 docs_ref: spec/memory.json
                 notes: 'Basis: types + api-contract spec_vs_sdk_gaps. src/memories.ts
                   retrieve uses mode; SearchListEnvelope.context/extras types.ts:153-156;
@@ -177,7 +174,7 @@ milestones:
                   and there is no equivalent searchAll() generator — callers must
                   hand-roll cursor threading. A 1.0 could add the symmetric auto-pager.'
                 sequence: 3
-                status: todo
+                status: done
                 docs_ref: spec/memory.json
                 notes: 'Basis: api-contract spec_vs_sdk_gap. src/memories.ts:list
                   auto-pages (480-488) but search (240-247) does not. Empty tdd_spec.'
@@ -189,7 +186,7 @@ milestones:
               model declared-but-unwired fields (expanded, server-supplied prompt
               templates, superseded-chain resolution).'
             docs_ref: docs/adr/ADR-002-type-surface-source-of-truth.md
-            status: todo
+            status: done
             features:
               wire-generated-types:
                 id: wire-generated-types
@@ -204,7 +201,7 @@ milestones:
                   + git diff --exit-code -- src/generated/types.ts, chained into prepublishOnly)
                   keeps the committed reference provably in sync with the spec.'
                 sequence: 1
-                status: todo
+                status: done
                 docs_ref: spec/memory.json
                 notes: "Resolved (M2RECON step 7, card f5ddyp). The src/types.ts:1-2
                   header SoT pointer was corrected from a non-existent openapi spec
@@ -227,10 +224,10 @@ milestones:
                   chain or fetch the new fact. All convenience/forward gaps, not missing
                   endpoints."
                 sequence: 2
-                status: todo
-                notes: 'Basis: types + api-contract spec_vs_sdk_gaps. Memory.expanded
-                  types.ts:74; PromptTemplate types.ts:283 doc; memories_superseded_by
-                  in IngestJobResult. Empty tdd_spec — no behavior to ground.'
+                status: done
+                notes: superseded-chain resolver wired; Memory.expanded/expand
+                  param + server-supplied PromptTemplate DEFERRED with rationale
+                  per ADR-002 C2 (no API trigger yet). Triaged + recorded.
         docs_ref: docs/designs/m2-1.0-spec-reconciliation-and-surface.md
   m1:
     id: m1

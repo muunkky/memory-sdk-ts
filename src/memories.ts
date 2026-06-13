@@ -247,6 +247,30 @@ export class Memories {
   }
 
   /**
+   * Iterate every memory matching a search query, auto-paginating until the
+   * server says `has_more: false`. The async-generator twin of {@link list},
+   * for {@link search} instead of the list endpoint:
+   *
+   * ```ts
+   * for await (const m of client.memories.searchAll({ query: "q", user_id: "alice" })) {
+   *   // ...
+   * }
+   * ```
+   *
+   * Each page is a fresh `{ ...body, cursor }` spread, so the caller's `body`
+   * object is never mutated — the same request can be reused across calls.
+   */
+  async *searchAll(body: SearchRequest, context: RequestContext = {}): AsyncGenerator<Memory, void, void> {
+    let cursor = body.cursor;
+    while (true) {
+      const env = await this.search({ ...body, cursor }, context);
+      for (const memory of env.data) yield memory;
+      if (!env.has_more || !env.next_cursor) return;
+      cursor = env.next_cursor;
+    }
+  }
+
+  /**
    * Sugar over {@link search} that forces `mode: "compose"` — the response's
    * `context` carries xmem's LLM-assembled, ready-to-inject prompt (and `data`
    * the agent-filtered rows). For a personal + shared (group) read in one call,

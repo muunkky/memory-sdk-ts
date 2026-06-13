@@ -130,6 +130,12 @@ for await (const memory of client.memories.list({ user_id: "alice" })) {
   console.log(memory.text);
 }
 
+// Search with auto-pagination — the search twin of list(); threads the cursor
+// for you across pages until the server says has_more: false
+for await (const memory of client.memories.searchAll({ query: "what does the user like to eat?", user_id: "alice" })) {
+  console.log(memory.text);
+}
+
 // Get one
 const memory = await client.memories.get(results.data[0]!.id);
 

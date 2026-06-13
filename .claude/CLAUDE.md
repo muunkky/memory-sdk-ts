@@ -31,6 +31,27 @@ cards locally for tasks; commit board state freely. The pre-commit gate
 code is staged** — board/doc-only commits skip it. There is **no CI**, so this
 local gate (= the `prepublishOnly` gate) is the only automated safety net.
 
+### Sprint issues (GitHub)  ← part of our git strategy for this repo
+Issues are enabled on `origin` (`muunkky/memory-sdk-ts`). We open a tracking
+**GitHub issue when a sprint starts** — that is the moment we have the most
+clarity on what to build and why, so we capture it for the world while it's
+fresh. The issue explains, in plain language: what the sprint is, the problem it
+solves, the approach we're taking, and the planned scope (link the driving
+roadmap node / ADRs / design doc). Create it at sprint launch (after the sprint
+cards are planned, as dispatch begins):
+```bash
+gh issue create --repo muunkky/memory-sdk-ts \
+  --title "<SPRINTTAG>: <one-line sprint goal>" \
+  --body  "<what / why / approach / scope — link roadmap + docs/adr + docs/designs>"
+```
+When the sprint finishes, the sprint **PR closes the issue** — put `Closes #<n>`
+in the PR body so merging auto-closes it. The arc is: issue (launch, best
+documentation) → PR (closeout) → merge closes the issue.
+
+Issues aren't limited to sprints — open them in advance for planned work, or for
+bugs/discussions as usual — but the **issue-per-sprint** loop above is a standing
+part of the strategy, not optional.
+
 ### Contributing upstream (clean PRs)
 `main` carries the overlay, so **never PR a branch cut from `main`** — it would
 drag 200+ gitban files into the diff. Instead, branch the code change from the

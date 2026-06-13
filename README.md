@@ -54,6 +54,23 @@ Sign in at [app.xtrace.ai](https://app.xtrace.ai) and grab two values from **Set
 
 Both are required on every request. See the [full docs](https://docs.xtrace.ai/guides/authentication) for storage best practices.
 
+### Auth header form
+
+By default the client sends the API key as `Authorization: Bearer <apiKey>`. If
+your deployment authenticates with an `x-api-key` header instead, opt in with
+`authMode`:
+
+```ts
+const client = new MemoryClient({
+  apiKey: process.env.XTRACE_API_KEY!,
+  orgId:  process.env.XTRACE_ORG_ID!,
+  authMode: "x-api-key", // sends `x-api-key: <apiKey>`; omits `Authorization`
+});
+```
+
+`X-Org-Id` is sent in both modes. `authMode` defaults to `"bearer"`, so existing
+code is unaffected.
+
 ## TypeScript SDK
 
 ```ts
@@ -88,6 +105,16 @@ if (sync.status === "succeeded") {
   console.log(sync.result?.memories_created);
 }
 
+// When an ingest supersedes an existing fact, the result maps old id → new id
+// (`result.memories_superseded_by`). Resolve a superseded fact to its
+// replacement Memory without reading that map yourself:
+const oldId = "mem_old"; // an id you held before this ingest
+const replacement = await client.memories.resolveSuperseded(done.result!, oldId);
+// → the new Memory, or null if `oldId` wasn't superseded in this ingest.
+
+// Or resolve everything this ingest superseded in one call (Map<oldId, Memory>):
+const replacements = await client.memories.resolveAllSuperseded(done.result!);
+
 // Search — scope by what you pass (user_id / group_ids / agent_id / app_id all AND-narrow)
 const results = await client.memories.search({
   query: "what does the user like to eat?",
@@ -100,8 +127,22 @@ const { prompt } = await client.memories.recall({
   pools: [{ user_id: "alice" }, { group_ids: ["grp_tokyo2026"] }],
 });
 
+// Recall + heavy artifact bodies in one round-trip — `include` is forwarded to
+// every pool, so `details.full_content` is populated on the rows it returns.
+const { memories } = await client.memories.recall({
+  query: "the trip itinerary",
+  pools: [{ user_id: "alice" }, { group_ids: ["grp_tokyo2026"] }],
+  include: ["full_content"],
+});
+
 // List with auto-pagination
 for await (const memory of client.memories.list({ user_id: "alice" })) {
+  console.log(memory.text);
+}
+
+// Search with auto-pagination — the search twin of list(); threads the cursor
+// for you across pages until the server says has_more: false
+for await (const memory of client.memories.searchAll({ query: "what does the user like to eat?", user_id: "alice" })) {
   console.log(memory.text);
 }
 
@@ -111,6 +152,65 @@ const memory = await client.memories.get(results.data[0]!.id);
 // Delete (hard — the point is removed; get/list/search no longer return it, a second delete 404s)
 await client.memories.delete(memory.id);
 ```
+
+## Filtering
+
+Scope axes (`user_id` / `agent_id` / `app_id` / `group_ids`) are top-level
+fields on `search`. For anything richer — ranges, set membership, negation,
+existence, or filtering on your own indexed payload keys — pass a filter to
+`search({ filters })`. Use the typed `f` builder instead of hand-writing the
+wire JSON: it's discoverable, and it makes a silently-wrong query impossible.
+
+```ts
+import { f } from "@xtraceai/memory";
+
+// (agent_id == "bot") AND (0.5 <= score < 0.9) AND (plan in ["a", "b"])
+const results = await client.memories.search({
+  query: "recent activity",
+  filters: f.all(
+    f.eq("agent_id", "bot"),
+    f.field("score", { $gte: 0.5, $lt: 0.9 }), // a range keeps BOTH operators
+    f.in("plan", ["a", "b"]),
+  ),
+});
+```
+
+`f.field(name, ops)` is the only way to put multiple operators on one field, so
+a two-sided range can't silently collapse to one bound. `f.all(...)` merges
+clauses on **distinct** fields and **throws** on a duplicate field — combine a
+field's operators in a single `f.field` call, or `f.and(...)` to AND two
+conditions on the same field explicitly.
+
+```ts
+// single-operator shorthands
+f.eq("status", "active");          // { status: { $eq: "active" } }
+f.ne("status", "archived");        // { status: { $ne: "archived" } }
+f.in("plan", ["pro", "team"]);     // { plan: { $in: ["pro", "team"] } }
+f.nin("plan", ["free"]);           // { plan: { $nin: ["free"] } }
+f.exists("conv_id");               // { conv_id: { $exists: true } }
+f.exists("conv_id", false);        // { conv_id: { $exists: false } }
+f.between("score", 0.5, 0.9);      // { score: { $between: [0.5, 0.9] } }
+f.isNull("agent_id");              // { agent_id: null }  ← null = unset
+
+// boolean composition
+f.and(f.eq("a", 1), f.eq("b", 2)); // { AND: [...] }
+f.or(f.eq("a", 1), f.eq("b", 2));  // { OR:  [...] }
+f.not(f.eq("a", 1));               // { NOT: { a: { $eq: 1 } } }
+```
+
+The builder is **key-agnostic** — it filters any indexed payload key, including
+your own metadata keys, exactly the way it filters an entity axis:
+
+```ts
+// `tier` is a customer metadata key; it filters identically to a built-in axis.
+filters: f.all(f.eq("agent_id", "bot"), f.eq("tier", "gold"));
+```
+
+The builder's output is a plain object assignable to `SearchRequest.filters`, so
+the raw `Filter` (`Record<string, unknown>`) escape hatch still works if you'd
+rather hand-write the JSON. (Lifting scope axes such as `user_id` *out of*
+`filters` is deprecated — set those as top-level fields — but the operator DSL
+over payload keys is fully supported.)
 
 ## Vercel AI SDK integration
 
@@ -177,9 +277,83 @@ try {
 }
 ```
 
+`error.code` is populated regardless of which envelope the server emits — the
+legacy `{ error: { code, message } }`, the spec `{ detail: { code, message } }`,
+or FastAPI's plain `{ detail: "..." }` string (which sets `error.message`). A
+`422` validation response (`{ detail: [...] }`) surfaces as `Unprocessable` with
+`error.code === "validation_error"` and the raw per-field array under
+`error.details.validation_errors`:
+
+```ts
+import { Unprocessable } from "@xtraceai/memory";
+
+try {
+  await client.memories.search({ query: "" });
+} catch (err) {
+  if (err instanceof Unprocessable) {
+    const fields = err.details?.validation_errors; // raw FastAPI 422 array
+  }
+}
+```
+
+### Rate limits
+
+When the server sends `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset`
+headers, the SDK parses them into a `RateLimitSnapshot`. On any thrown error,
+read it from `err.rateLimit` so you can back off proactively:
+
+```ts
+import { RateLimited } from "@xtraceai/memory";
+
+try {
+  await client.memories.search({ query: "recent context" });
+} catch (err) {
+  if (err instanceof RateLimited && err.rateLimit?.remaining === 0) {
+    // wait err.rateLimit.reset seconds before the next call
+    // (err.retryAfter carries the server's Retry-After for a 429)
+  }
+}
+```
+
+Absent headers leave every `RateLimitSnapshot` field `undefined`. Rate-limit
+state is exposed per-response — there is no client-level "last seen" global,
+because the SDK fans out concurrent requests and a shared snapshot would be
+racy.
+
+Note (v0.3.0): the snapshot is parsed for **every** response, but on the
+**success** path it is currently only available on the internal
+`HttpClient.request()` return — the public methods (`memories.*`, `groups.*`)
+return just the parsed body, so there is no public success-path read yet. A
+public success-path rate-limit surface is deferred until there is demand for
+it; today, `err.rateLimit` on a thrown error is the supported way to observe
+the bucket state.
+
 ## Documentation
 
 Full documentation at [docs.xtrace.ai](https://docs.xtrace.ai).
+
+### Type surface & generated reference (maintainers)
+
+The hand-authored `src/types.ts` is the canonical public type surface
+(see `docs/adr/ADR-002`). `src/generated/types.ts` is a spec-derived
+**reference** — produced by `npm run gen:types`
+(`openapi-typescript spec/memory.json`) and imported by nothing in `src/`.
+Do not hand-edit the generated file; regenerate it from the spec instead.
+
+`npm run check:types-sync` (`gen:types` + `git diff --exit-code` on the
+generated file) proves the committed reference is exactly what the current
+`spec/memory.json` produces, catching reference drift. It is chained into
+`prepublishOnly`, so a publish fails if the generated reference is stale.
+After any `spec/memory.json` change, run `npm run gen:types` and commit the
+regenerated reference.
+
+**openapi-typescript version pin:** the reference is generated with
+**openapi-typescript `^7.4.0`** (the version installed at generation time was
+`7.13.0`). The generator's output format can shift between minor versions, so a
+bump can make `check:types-sync` fail even with no spec change. If that happens,
+it is not spec drift — run `npm run gen:types`, review the diff, and commit the
+regenerated reference. Keep the devDependency pin tight to avoid spurious
+failures.
 
 # License
 

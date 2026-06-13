@@ -26,4 +26,7 @@ coverage
 .gitban/.viewer-port
 .gitban/views/
 .gitignore.gitban
+# Stray nested gitban overlay dirs a hook can create when it runs with a
+# non-root cwd (e.g. during doc authoring) — only the root .gitban/ is real.
+docs/**/.gitban/
 /log/

@@ -52,6 +52,27 @@ Issues aren't limited to sprints — open them in advance for planned work, or f
 bugs/discussions as usual — but the **issue-per-sprint** loop above is a standing
 part of the strategy, not optional.
 
+### Human unblockers (GitHub issue)  ← the channel for human intervention
+This fork is developed by an autonomous run; human input arrives through the
+Tasks conversation, and when the run hits something **only a human can supply** —
+API credentials, external access, a product/scope decision the agent genuinely
+cannot make, infra it cannot provision — it does **not** silently work around it
+or bury the ask in a gitban card. It **opens a GitHub issue requesting the
+unblock**, so the human-in-the-loop can see and act on it:
+```bash
+gh issue create --repo muunkky/memory-sdk-ts \
+  --title "[unblock] <what is needed>" \
+  --body  "<why it's needed · what is blocked on it · how to provide it · link the gitban card / roadmap node>"
+```
+Engineering *around* a blocker is still fine and encouraged (e.g. hardening to
+accept both wire shapes when a live probe isn't possible) — but the **request**
+gets an issue regardless, so the human sees it. Division of channels:
+- **Issues** — actionable, addressed-to-a-human: sprint tracking + unblock requests.
+- **Discussion** (`#1`) — the public *story* of the project; narrative updates are
+  comments on that thread, not new posts.
+- **gitban cards** — internal execution tracking; a blocked card may *mirror* an
+  unblock issue, but the issue is the human-facing ask.
+
 ### Contributing upstream (clean PRs)
 `main` carries the overlay, so **never PR a branch cut from `main`** — it would
 drag 200+ gitban files into the diff. Instead, branch the code change from the

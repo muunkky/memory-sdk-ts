@@ -553,6 +553,20 @@ describe("Memories.recall — include[] threading (B2 / KD-5)", () => {
     expect(calls[0]!.include).toEqual(["full_content"]);
   });
 
+  it("rejects context_prompt on RecallParams.include at compile time (KD-5)", async () => {
+    const { http, calls } = fakeHttp({ onSearch: () => [] });
+    await new Memories(http).recall({
+      query: "q",
+      pools: [{ user_id: "alice" }],
+      // @ts-expect-error — recall scopes include to "full_content" only; recall
+      // discards per-pool envelopes, so context_prompt has no output channel.
+      include: ["context_prompt"],
+    });
+    // it still runs (the value is forwarded verbatim) — the contract is the
+    // compile-time rejection above, enforced by @ts-expect-error under typecheck.
+    expect(calls).toHaveLength(1);
+  });
+
   it("full_content is reachable on a returned artifact row (typed accessor)", async () => {
     const { http } = fakeHttp({
       onSearch: () => [

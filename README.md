@@ -117,6 +117,14 @@ const { prompt } = await client.memories.recall({
   pools: [{ user_id: "alice" }, { group_ids: ["grp_tokyo2026"] }],
 });
 
+// Recall + heavy artifact bodies in one round-trip — `include` is forwarded to
+// every pool, so `details.full_content` is populated on the rows it returns.
+const { memories } = await client.memories.recall({
+  query: "the trip itinerary",
+  pools: [{ user_id: "alice" }, { group_ids: ["grp_tokyo2026"] }],
+  include: ["full_content"],
+});
+
 // List with auto-pagination
 for await (const memory of client.memories.list({ user_id: "alice" })) {
   console.log(memory.text);

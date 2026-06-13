@@ -281,6 +281,11 @@ export class Memories {
    * Pass `pools` — the scopes to union. Axes within a pool AND; pools OR. At
    * least one pool (each with ≥1 axis) is required.
    *
+   * Pass `include: ["full_content"]` to fetch heavy artifact bodies on the
+   * returned rows in the same round-trip — it's forwarded to every per-pool
+   * search, so `ArtifactDetails.full_content` is populated on the merged set
+   * without follow-up `get()` calls.
+   *
    * @example
    * // personal + a group ("my stuff OR the trip's stuff"):
    * const { prompt } = await client.memories.recall({
@@ -313,7 +318,7 @@ export class Memories {
       ) => string;
     } & RequestContext = {},
   ): Promise<RecallResult> {
-    const { query } = params;
+    const { query, include } = params;
     const mode = params.mode ?? "compose";
     const limit = params.limit ?? 10;
 
@@ -364,9 +369,15 @@ export class Memories {
     const poolLabel = (p: ScopePool): string =>
       p.group_ids && p.group_ids.length > 0 ? "shared" : p.user_id ? "personal" : "scope";
 
+    // `include` (full_content only — KD-5) rides on EVERY per-pool search so the
+    // merged rows are uniformly enriched. Spread it only when present: a bare
+    // `include` would set the key to `undefined` on the body, whereas omitting
+    // the option must leave the wire request byte-identical to today's. `...pool`
+    // carries no `include` axis, so there's no collision.
+    const includeFields = include ? { include } : {};
     const jobs = pools.map((pool) => ({
       pool,
-      promise: this.search({ query, mode, limit, ...pool }, ctx),
+      promise: this.search({ query, mode, limit, ...includeFields, ...pool }, ctx),
     }));
 
     // Resolve group id → name from the registry when any pool targets a group,

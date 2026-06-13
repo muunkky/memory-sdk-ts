@@ -257,6 +257,22 @@ export interface RecallParams {
   mode?: SearchMode;
   /** Cap on the merged, deduped result. Default 10. */
   limit?: number;
+  /**
+   * Heavy fields to fetch on the returned rows. Forwarded to **every** per-pool
+   * search, so a single recall enriches the merged set without follow-up `get()`
+   * calls — e.g. `include: ["full_content"]` makes `ArtifactDetails.full_content`
+   * available on artifact rows.
+   *
+   * Scoped to `"full_content"` only (NOT the `"context_prompt"` that
+   * {@link SearchRequest} accepts): recall discards each pool's
+   * {@link SearchListEnvelope} — it dedupes/re-ranks the rows and renders **one**
+   * client-side prompt, returning `{ memories, prompt, scopes }` with no per-pool
+   * `extras` channel — so a requested `context_prompt` would only make the server
+   * assemble prompts recall then throws away. Use {@link Memories.search} /
+   * {@link Memories.retrieve} (which return the envelope intact) when you need the
+   * per-scope `context_prompt`.
+   */
+  include?: Array<"full_content">;
 }
 
 /** Per-pool diagnostic returned by {@link Memories.recall}. */

@@ -132,3 +132,82 @@ release v0.3.0), or promoted to a next-sprint card if neither fits cleanly.
 
 - [ ] Item 1 classified (exactly one deferral type marked `true` above)
 - [ ] Item 1 actioned (action taken matches chosen type)
+
+### Item 2: resolveAllSuperseded uses Promise.all — whole-batch rejection on a single unreachable replacement
+
+The batch helper `resolveAllSuperseded` fans out per-entry `get()` calls via
+`Promise.all`, which rejects wholesale the moment any single `get()` fails. The
+real client throws on a 404 (the test fixture mirrors this), so if a replacement
+memory was deleted between the ingest and the batch call, the entire batch
+rejects and the caller loses every successfully-resolved entry. The single-entry
+`resolveSuperseded` has no such surprise. This may be the intended contract, but
+it is neither documented in the JSDoc nor exercised by a test — the existing
+batch tests cover only the all-success and empty-map cases.
+
+Two remediation options the reviewer named: (a) a JSDoc note ("rejects if any
+replacement is unreachable") plus a partial-failure test that asserts the
+documented all-or-nothing behavior, or (b) a `Promise.allSettled` variant that
+skips unresolvable entries and returns only the successfully-resolved ones.
+Option (b) is a behavior change to a freshly-shipped public method and would want
+its own test + JSDoc; option (a) pins the current contract with no behavior
+change.
+
+Captured here (not filed as a sprint card) because it blocks no downstream
+M2RECON card — the single-resolve path is the card's capstone and is unaffected,
+and the all-success batch path is already covered — and it has no external
+prerequisite; it is fully doable in-repo today. At closeout it is a natural
+promotion candidate: small enough to fold into the release card's polish or
+promote to a next-sprint card if a behavior change (option b) is chosen over a
+contract-pinning doc+test (option a).
+
+| Deferral Type | Description | Applies (true/false) |
+|---------------|-------------|----------------------|
+| backlog | Genuinely future work; external prerequisite or belongs to a different milestone; can't be done in upcoming work without a shape-change. | |
+| sprint | Blocks or enables sprint-scoped work (current or next); needs its own card with a sprint tag. | |
+| note-only | Captured for record; no action; current output is fine as-is. | |
+| fixed-with-note | Trivial enough for the closeout agent to fix inline during closeout, with a note of what was done (typo, lint fix, stale comment). | |
+
+**Source:** l3jhjg review 1
+**Files touched:** src/memories.ts (resolveAllSuperseded, ~line 272), src/superseded.test.ts (batch coverage), README.md (if JSDoc/contract documented for the public surface)
+**Action taken:** {closeout fills prose — card {id} created in sprint {tag} / card {id} created in loose backlog / noted, no action / fixed in commit {hash}}
+
+- [ ] Item 2 classified (exactly one deferral type marked `true` above)
+- [ ] Item 2 actioned (action taken matches chosen type)
+
+### Item 3: Conformance assertions — guard proves reproducibility, not that canonical src/types.ts matches the spec-derived schemas
+
+The `check:types-sync` guard added in card f5ddyp proves *reproducibility* only:
+the committed `src/generated/types.ts` reference equals what `gen:types` produces
+from `spec/memory.json`. It does **not** prove *conformance* — that the
+hand-authored canonical `src/types.ts` actually matches the spec-derived schemas.
+The two are independent surfaces: the generated reference can be perfectly
+in-sync with the spec while the hand-authored canonical type silently diverges
+from it on a wire-critical field, and no automated check would catch the drift.
+
+This is correctly deferred, not a blocker. ADR-002 KF3 (Implementation Notes)
+explicitly scopes `expectAssignable`-style conformance assertions — pinning the
+canonical surface against the generated reference — as an **optional follow-up,
+not a 1.0 precondition**. No downstream M2RECON card blocks on it (the release
+card u4uqio ships without it per ADR-002), and it has no external prerequisite:
+both `src/types.ts` and `src/generated/types.ts` exist today, so the assertions
+are fully writable in-repo now. Captured here so the gap is on the record and
+deduped — a roadmap search confirmed no existing conformance card. At closeout it
+is a promotion candidate: a small `tsd`/`expect-type` harness asserting the
+canonical types are assignable to (and from) the spec-derived schemas, wired into
+the existing `typecheck → test → build` gate, would close it. Failure mode if
+never done: the canonical surface diverges from the spec on a wire-critical type
+and ships silently.
+
+| Deferral Type | Description | Applies (true/false) |
+|---------------|-------------|----------------------|
+| backlog | Genuinely future work; external prerequisite or belongs to a different milestone; can't be done in upcoming work without a shape-change. | |
+| sprint | Blocks or enables sprint-scoped work (current or next); needs its own card with a sprint tag. | |
+| note-only | Captured for record; no action; current output is fine as-is. | |
+| fixed-with-note | Trivial enough for the closeout agent to fix inline during closeout, with a note of what was done (typo, lint fix, stale comment). | |
+
+**Source:** f5ddyp review 1
+**Files touched:** src/types.ts (canonical surface), src/generated/types.ts (spec-derived reference), package.json (gate wiring if a conformance harness is added), docs/adr/ADR-002 (KF3 — Implementation Notes scoping the deferral)
+**Action taken:** {closeout fills prose — card {id} created in sprint {tag} / card {id} created in loose backlog / noted, no action / fixed in commit {hash}}
+
+- [ ] Item 3 classified (exactly one deferral type marked `true` above)
+- [ ] Item 3 actioned (action taken matches chosen type)

@@ -194,21 +194,27 @@ milestones:
               wire-generated-types:
                 id: wire-generated-types
                 title: Wire in canonical generated types
-                description: "Candidate: src/types.ts (L1-2) states the public types
-                  are hand-written to match openapi/memory_v2.json with a 'Regenerate
-                  the canonical version with npm run gen:types once the spec is final'
-                  TODO. The generated/canonical surface (src/generated/types.ts) is
-                  not yet wired in over the hand-authored interim — a 1.0 stabilization
-                  step once the spec is finalized."
+                description: 'Per ADR-002: the hand-authored src/types.ts is the canonical
+                  1.0 public surface; src/generated/types.ts is a spec-derived REFERENCE
+                  artifact (regenerated from spec/memory.json via npm run gen:types),
+                  not promoted to the public surface. The src/types.ts:1-2 header
+                  now references spec/memory.json (the gen:types source); the former
+                  phantom source-of-truth pointer (a non-existent openapi path) is
+                  gone. A reproducibility guard (npm run check:types-sync = gen:types
+                  + git diff --exit-code -- src/generated/types.ts, chained into prepublishOnly)
+                  keeps the committed reference provably in sync with the spec.'
                 sequence: 1
                 status: todo
                 docs_ref: spec/memory.json
-                notes: 'Basis: types spec_vs_sdk_gap. src/types.ts:1 header TODO references
-                  openapi/memory_v2.json — but that path does NOT exist; the gen:types
-                  script (package.json:49) targets spec/memory.json instead. This
-                  source-of-truth file-name mismatch must be resolved as part of wiring
-                  in the generated surface. src/generated/types.ts exists but is unused
-                  by the public surface. Empty tdd_spec.'
+                notes: "Resolved (M2RECON step 7, card f5ddyp). The src/types.ts:1-2
+                  header SoT pointer was corrected from a non-existent openapi spec
+                  path to spec/memory.json (matching package.json:49 gen:types). src/generated/types.ts
+                  was regenerated from the reconciled 1.0 spec (after step 2A's ADR-001
+                  annotations) and is kept honest by the check:types-sync guard. Disposition
+                  per ADR-002: the generated surface is NOT wired in over the hand-authored
+                  one — hand-authored stays canonical, generated stays a reference.
+                  Conformance assertions (expectAssignable) are an optional ADR-002
+                  follow-up, not a 1.0 precondition."
               model-expanded-and-templates:
                 id: model-expanded-and-templates
                 title: Wire request-side triggers for declared-but-unused fields
@@ -1036,11 +1042,14 @@ milestones:
                 docs_ref: spec/memory.json
                 notes: "package.json:49 gen:types targets spec/memory.json; openapi-typescript
                   ^7.4.0 devDep (package.json:56). spec/memory.json + src/generated/types.ts
-                  present. INCONSISTENCY: src/types.ts:1 header says the hand-written
-                  types match 'openapi/memory_v2.json' — a DIFFERENT, non-existent
-                  path than the gen:types target (spec/memory.json). The generated
-                  surface is not yet wired in over the hand-authored one (spec_vs_sdk_gap
-                  → m2)."
+                  present. RESOLVED (M2RECON step 7, card f5ddyp): the src/types.ts:1
+                  header SoT-pointer inconsistency — it formerly named a non-existent
+                  openapi spec path that differed from the gen:types target — was
+                  corrected to spec/memory.json, the generated reference was regenerated
+                  from the reconciled 1.0 spec, and a check:types-sync guard (gen:types
+                  + git diff --exit-code, chained into prepublishOnly) now prevents
+                  drift. Per ADR-002 the generated surface stays a reference; the
+                  hand-authored src/types.ts is canonical (not 'wired in over')."
               prepublish-gate:
                 id: prepublish-gate
                 title: prepublishOnly safety gate (typecheck → test → build)

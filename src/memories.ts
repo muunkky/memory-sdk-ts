@@ -316,6 +316,11 @@ export class Memories {
    *
    * Each page is a fresh `{ ...body, cursor }` spread, so the caller's `body`
    * object is never mutated — the same request can be reused across calls.
+   *
+   * For a stable full sweep, prefer `mode: "retrieve"` (the raw vector-ranked
+   * set): the default `"compose"` re-runs the per-page LLM selection pass, so a
+   * cursor threaded across compose pages can re-rank between pages and re-incurs
+   * the compose cost on every fetch.
    */
   async *searchAll(body: SearchRequest, context: RequestContext = {}): AsyncGenerator<Memory, void, void> {
     let cursor = body.cursor;
@@ -451,11 +456,11 @@ export class Memories {
       p.group_ids && p.group_ids.length > 0 ? "shared" : p.user_id ? "personal" : "scope";
 
     // `include` (full_content only — KD-5) rides on EVERY per-pool search so the
-    // merged rows are uniformly enriched. Spread it only when present: a bare
-    // `include` would set the key to `undefined` on the body, whereas omitting
-    // the option must leave the wire request byte-identical to today's. `...pool`
+    // merged rows are uniformly enriched. Spread it only when it carries fields:
+    // omitting the option — or passing an empty `include: []` (truthy, but a
+    // no-op) — must leave the wire request byte-identical to today's. `...pool`
     // carries no `include` axis, so there's no collision.
-    const includeFields = include ? { include } : {};
+    const includeFields = include && include.length > 0 ? { include } : {};
     const jobs = pools.map((pool) => ({
       pool,
       promise: this.search({ query, mode, limit, ...includeFields, ...pool }, ctx),

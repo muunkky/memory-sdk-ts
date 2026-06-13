@@ -55,6 +55,18 @@ describe("filter DSL — f.field is the only multi-operator-per-field path", () 
     ops.$lt = 999; // mutate the caller's input after building
     expect(clause).toEqual({ score: { $gte: 0.5, $lt: 0.9 } });
   });
+
+  it("deep-copies array-valued operators so caller array mutation can't corrupt the clause", () => {
+    // A shallow {...ops} would leave $between/$in/$nin aliased to the caller's
+    // arrays — mutating them afterwards would corrupt the already-built clause.
+    const between: [number, number] = [10, 100];
+    const inVals = ["a", "b"];
+    const ops: FieldOps = { $between: between, $in: inVals };
+    const clause = f.field("price", ops);
+    between[1] = 999; // mutate the caller's tuple
+    inVals.push("c"); // mutate the caller's array
+    expect(clause).toEqual({ price: { $between: [10, 100], $in: ["a", "b"] } });
+  });
 });
 
 describe("filter DSL — combinators emit AND/OR/NOT wire keys", () => {

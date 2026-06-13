@@ -95,6 +95,18 @@ describe("parseErrorBody (pure precedence helper)", () => {
     expect(parseErrorBody("plain string")).toBeNull();
     expect(parseErrorBody({ detail: 42 })).toBeNull();
   });
+
+  it("array `error` is NOT a legacy envelope — falls through to a sibling detail", () => {
+    // An array is `typeof 'object'`; the legacy branch must reject it (isRecord)
+    // so a populated `detail` envelope is still parsed instead of returning
+    // an all-undefined legacy match.
+    const parsed = parseErrorBody({ error: [], detail: { code: "rate_limited", message: "slow down" } });
+    expect(parsed).toEqual({ code: "rate_limited", message: "slow down" });
+  });
+
+  it("array `error` with no detail → null (not an all-undefined legacy match)", () => {
+    expect(parseErrorBody({ error: [1, 2] })).toBeNull();
+  });
 });
 
 describe("error envelope through request() -> toError (capstone)", () => {
@@ -202,5 +214,17 @@ describe("rate-limit snapshot (KD-2)", () => {
     const res = await client.request("GET", "/v1/thing");
     // limit dropped (non-finite), remaining kept; an all-empty snapshot would be undefined
     expect(res.rateLimit).toEqual({ remaining: 9 });
+  });
+
+  it("empty / whitespace RateLimit-* values are dropped, not coerced to 0", async () => {
+    const client = clientReturning({
+      status: 200,
+      body: { ok: true },
+      headers: { "RateLimit-Remaining": "", "RateLimit-Reset": "   ", "RateLimit-Limit": "50" },
+    });
+    const res = await client.request("GET", "/v1/thing");
+    // An empty/whitespace header must NOT become 0 (a falsely-exhausted bucket);
+    // only the real numeric limit survives.
+    expect(res.rateLimit).toEqual({ limit: 50 });
   });
 });

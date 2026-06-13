@@ -76,10 +76,19 @@ export const f = {
    * Single-field condition carrying one or more operators. This is the ONLY way
    * to put multiple operators on one field, so a range is
    * `f.field('price', { $gt: 10, $lt: 100 })` — both operators kept. The ops
-   * object is copied, so mutating the caller's input afterwards can't corrupt
-   * the clause.
+   * object AND its array-valued operators (`$in`/`$nin`/`$between`) are copied,
+   * so mutating the caller's input afterwards can't corrupt the clause.
    */
-  field: (name: string, ops: FieldOps): Clause => ({ [name]: { ...ops } }),
+  field: (name: string, ops: FieldOps): Clause => {
+    const copy: FieldOps = { ...ops };
+    // Deep-copy the array-typed operators — a shallow `{ ...ops }` would leave
+    // these aliased to the caller's arrays, so a later `ops.$between[1] = …`
+    // would mutate the already-built clause.
+    if (Array.isArray(copy.$in)) copy.$in = [...copy.$in];
+    if (Array.isArray(copy.$nin)) copy.$nin = [...copy.$nin];
+    if (Array.isArray(copy.$between)) copy.$between = [copy.$between[0], copy.$between[1]];
+    return { [name]: copy };
+  },
 
   /** `field == v` (explicit equality; same as a bare value server-side). */
   eq: (field: string, v: Comparable): Clause => ({ [field]: { $eq: v } }),

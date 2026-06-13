@@ -156,7 +156,10 @@ function toError(
 function parseRateLimit(headers: Headers): RateLimitSnapshot | undefined {
   const num = (name: string): number | undefined => {
     const raw = headers.get(name);
-    if (raw === null) return undefined;
+    // Drop absent, empty, and whitespace-only headers: `Number("")` and
+    // `Number("   ")` both coerce to a finite 0, which would otherwise be
+    // reported as `remaining: 0` (a falsely-exhausted bucket).
+    if (raw === null || raw.trim() === "") return undefined;
     const n = Number(raw);
     return Number.isFinite(n) ? n : undefined;
   };

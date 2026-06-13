@@ -74,9 +74,13 @@ export interface ParsedError {
 /**
  * Normalize any server error body to `{ type?, code?, message?, details? }`,
  * handling every envelope the Memory API can emit. Precedence is legacy-first
- * so the established `{error:{…}}` path is byte-identical to before:
+ * so the established `{error:{…}}` path keeps top precedence; for
+ * spec-conformant bodies the output matches the prior `toError` exactly (each
+ * field is validated to its declared type — a contract-conformant `code` is a
+ * string, `details` an object, so verbatim and validated agree):
  *
- * 1. `{ error: {…} }` — the legacy `ApiErrorBody`; fields lifted verbatim.
+ * 1. `{ error: {…} }` — the legacy `ApiErrorBody` object (not an array; an
+ *    array `error` falls through so a sibling `detail` envelope is still read).
  * 2. `{ detail: [...] }` — FastAPI 422 validation array. The array carries no
  *    top-level code, so synthesize `code: 'validation_error'`, build a human
  *    `message`, and preserve the raw array under `details.validation_errors`.
@@ -91,10 +95,12 @@ export function parseErrorBody(parsed: unknown): ParsedError | null {
   if (parsed === null || typeof parsed !== "object") return null;
   const obj = parsed as Record<string, unknown>;
 
-  // 1. Legacy `{ error: {…} }` — untouched precedence, byte-identical output.
+  // 1. Legacy `{ error: {…} }` — top precedence. Must be a plain object: an
+  // array `error` is not a legacy envelope, so fall through to let a sibling
+  // `detail` envelope (if any) be parsed rather than returning all-undefined.
   const legacy = obj.error;
-  if (legacy !== null && typeof legacy === "object") {
-    const e = legacy as Record<string, unknown>;
+  if (isRecord(legacy)) {
+    const e = legacy;
     return {
       type: typeof e.type === "string" ? e.type : undefined,
       code: typeof e.code === "string" ? e.code : undefined,

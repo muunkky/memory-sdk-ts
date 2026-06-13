@@ -2,6 +2,7 @@ import type { HttpClient } from "./http.js";
 import { Jobs } from "./jobs.js";
 import type {
   IngestJob,
+  IngestJobResult,
   IngestRequest,
   GroupListEnvelope,
   ListEnvelope,
@@ -221,6 +222,62 @@ export class Memories {
       requestId: context.requestId,
     });
     return body;
+  }
+
+  /**
+   * Resolve a superseded fact to its replacement.
+   *
+   * When an ingest supersedes an existing fact, the server reports the old →
+   * new id mapping in {@link IngestJobResult.memories_superseded_by} (and only
+   * there — there is no global "what replaced id X?" endpoint). This helper
+   * follows that map for you: pass the `IngestJobResult` and the old id, and it
+   * returns the replacement `Memory` (fetched via {@link get}), or `null` when
+   * `oldId` was not superseded in this ingest.
+   *
+   * Takes the result explicitly rather than pretending old ids are globally
+   * queryable — the superseded map lives only on the job result. See
+   * ADR-002 (C2) for the rationale.
+   *
+   * ```ts
+   * const done = await client.memories.jobs.pollUntilDone(job.id);
+   * const replacement = await client.memories.resolveSuperseded(done.result!, oldId);
+   * // replacement is the new Memory, or null if oldId wasn't superseded
+   * ```
+   */
+  async resolveSuperseded(
+    result: IngestJobResult,
+    oldId: string,
+    context: RequestContext = {},
+  ): Promise<Memory | null> {
+    const newId = result.memories_superseded_by?.[oldId];
+    return newId ? this.get(newId, context) : null;
+  }
+
+  /**
+   * Batch twin of {@link resolveSuperseded}: resolve **every** fact this ingest
+   * superseded to its replacement in one call. Returns a `Map` keyed by the old
+   * id whose value is the replacement `Memory`. An ingest that superseded
+   * nothing yields an empty map.
+   *
+   * The per-id `get()` fetches run in parallel. Like {@link resolveSuperseded},
+   * it reads the mapping from {@link IngestJobResult.memories_superseded_by}.
+   *
+   * ```ts
+   * const replacements = await client.memories.resolveAllSuperseded(done.result!);
+   * for (const [oldId, replacement] of replacements) {
+   *   // ...
+   * }
+   * ```
+   */
+  async resolveAllSuperseded(
+    result: IngestJobResult,
+    context: RequestContext = {},
+  ): Promise<Map<string, Memory>> {
+    const entries = Object.entries(result.memories_superseded_by ?? {});
+    const resolved = await Promise.all(
+      entries.map(async ([oldId, newId]) => [oldId, await this.get(newId, context)] as const),
+    );
+    return new Map(resolved);
   }
 
   /**

@@ -71,6 +71,14 @@ interface MemoryBase<T extends MemoryType, D> {
   created_at: string;
   updated_at: string;
   details: D;
+  /**
+   * **Deferred for 1.0** — typed but inert. No request-side `expand` parameter
+   * exists on search/list/recall yet, so the server has no trigger to populate
+   * this and it stays `undefined` in practice. The field is kept as a
+   * forward-looking contract; it will be wired when the API documents an
+   * `expand` request shape. See ADR-002 (C2: `Memory.expanded` / `expand` →
+   * defer, no documented request trigger).
+   */
   expanded?: Record<string, Memory[]>;
 }
 
@@ -303,6 +311,15 @@ export interface RecallResult {
  * Note: a template controls *formatting of the fields each row carries*. It can't
  * reproduce xmem features that need extra data (authorship sections, full
  * artifact bodies, char-budgeting) without also widening the search payload.
+ *
+ * **Server-supplied templates are deferred for 1.0.** The type is fully usable
+ * today as a client-side override (`recall(..., { template })`), but the
+ * "future API endpoint returns xmem's preferred template" path above is
+ * **not yet implemented** — no server endpoint returns a `PromptTemplate`, so
+ * the SDK ships the {@link DEFAULT_PROMPT_TEMPLATE} and does not fetch one. The
+ * type stays as a forward contract; the fetch/cache path is wired when the
+ * server exposes it. See ADR-002 (C2: server-supplied `PromptTemplate` → defer,
+ * no server endpoint; client default suffices).
  */
 export interface PromptTemplate {
   /** Leading line of the block. */

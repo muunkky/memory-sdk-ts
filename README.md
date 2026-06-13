@@ -105,6 +105,16 @@ if (sync.status === "succeeded") {
   console.log(sync.result?.memories_created);
 }
 
+// When an ingest supersedes an existing fact, the result maps old id → new id
+// (`result.memories_superseded_by`). Resolve a superseded fact to its
+// replacement Memory without reading that map yourself:
+const oldId = "mem_old"; // an id you held before this ingest
+const replacement = await client.memories.resolveSuperseded(done.result!, oldId);
+// → the new Memory, or null if `oldId` wasn't superseded in this ingest.
+
+// Or resolve everything this ingest superseded in one call (Map<oldId, Memory>):
+const replacements = await client.memories.resolveAllSuperseded(done.result!);
+
 // Search — scope by what you pass (user_id / group_ids / agent_id / app_id all AND-narrow)
 const results = await client.memories.search({
   query: "what does the user like to eat?",

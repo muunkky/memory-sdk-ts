@@ -22,7 +22,7 @@ milestones:
       These are NOT committed work — they capture where the SDK and the OpenAPI spec/memory.json
       have drifted, for a maintainer to triage before locking the 1.0 contract. No
       gitban/.claude tooling work belongs here. Docs: spec/memory.json, RELEASING.md.'
-    status: todo
+    status: in_progress
     docs_ref: spec/memory.json
     stories:
       s5:
@@ -39,7 +39,7 @@ milestones:
           none is committed. Basis: api-contract and types spec_vs_sdk_gaps cross-checked
           against src/ and spec/memory.json; pre-1.0 minor-bump policy in RELEASING.md.
           No work has started."
-        status: todo
+        status: in_progress
         success_criteria:
           - 'Every confirmed SDK↔spec divergence (error-envelope shape, auth header
             form, rate-limit headers, PATCH/update endpoint) is triaged to a recorded

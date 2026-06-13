@@ -1,6 +1,14 @@
 import { errorForStatus, MemoryError, parseErrorBody, RateLimited, ServerError } from "./errors.js";
 import type { RateLimitSnapshot } from "./errors.js";
 
+/**
+ * How the API key is presented on the wire. `'bearer'` (default) sends
+ * `Authorization: Bearer <apiKey>`; `'x-api-key'` sends `x-api-key: <apiKey>`
+ * and no `Authorization` header. An enum (not a boolean) so a future `Token`
+ * form can be added without renaming.
+ */
+export type AuthMode = "bearer" | "x-api-key";
+
 export interface HttpClientConfig {
   apiKey: string;
   orgId: string;
@@ -8,6 +16,8 @@ export interface HttpClientConfig {
   fetch: typeof globalThis.fetch;
   defaultRequestId?: () => string;
   maxRetries: number;
+  /** How to present the API key. Defaults to `'bearer'`. */
+  authMode?: AuthMode;
   /** Hook for tests; pass a no-op to disable real timers. */
   sleep: (ms: number) => Promise<void>;
 }
@@ -41,11 +51,15 @@ export class HttpClient {
     const requestId = options.requestId ?? this.config.defaultRequestId?.() ?? makeRequestId();
 
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.config.apiKey}`,
       "X-Org-Id": this.config.orgId,
       "X-Request-Id": requestId,
       Accept: "application/json",
     };
+    if (this.config.authMode === "x-api-key") {
+      headers["x-api-key"] = this.config.apiKey;
+    } else {
+      headers["Authorization"] = `Bearer ${this.config.apiKey}`;
+    }
 
     let body: string | undefined;
     if (options.body !== undefined) {
@@ -163,6 +177,7 @@ export function defaultHttpConfig(input: {
   fetch?: typeof globalThis.fetch;
   maxRetries?: number;
   defaultRequestId?: () => string;
+  authMode?: AuthMode;
 }): HttpClientConfig {
   return {
     apiKey: input.apiKey,
@@ -171,6 +186,7 @@ export function defaultHttpConfig(input: {
     fetch: input.fetch ?? globalThis.fetch.bind(globalThis),
     maxRetries: input.maxRetries ?? 2,
     defaultRequestId: input.defaultRequestId,
+    authMode: input.authMode ?? "bearer",
     sleep: defaultSleep,
   };
 }

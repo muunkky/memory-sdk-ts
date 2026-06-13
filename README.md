@@ -54,6 +54,23 @@ Sign in at [app.xtrace.ai](https://app.xtrace.ai) and grab two values from **Set
 
 Both are required on every request. See the [full docs](https://docs.xtrace.ai/guides/authentication) for storage best practices.
 
+### Auth header form
+
+By default the client sends the API key as `Authorization: Bearer <apiKey>`. If
+your deployment authenticates with an `x-api-key` header instead, opt in with
+`authMode`:
+
+```ts
+const client = new MemoryClient({
+  apiKey: process.env.XTRACE_API_KEY!,
+  orgId:  process.env.XTRACE_ORG_ID!,
+  authMode: "x-api-key", // sends `x-api-key: <apiKey>`; omits `Authorization`
+});
+```
+
+`X-Org-Id` is sent in both modes. `authMode` defaults to `"bearer"`, so existing
+code is unaffected.
+
 ## TypeScript SDK
 
 ```ts

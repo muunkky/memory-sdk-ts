@@ -1,5 +1,6 @@
 export { MemoryClient } from "./client.js";
 export type { MemoryClientOptions } from "./client.js";
+export type { AuthMode } from "./http.js";
 
 export { Memories, renderMemoriesPrompt, DEFAULT_PROMPT_TEMPLATE } from "./memories.js";
 export type { IngestOptions, RequestContext } from "./memories.js";
